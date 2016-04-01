@@ -8,6 +8,8 @@ The script is written in c++, it uses the library boost (http://www.boost.org/) 
 
 #Option
  INPUT FILES
+ 
+ 
      -f <file> : fasta file which contains genome sequence(s).
      -c <file> : tabular file which contains covtigs [sequence_name start_position end_position average_coverage].
      -j <file> : tabular file which contains junctions [sequence_name end_position_of_exon1 start_position_of_exon2 strand].
