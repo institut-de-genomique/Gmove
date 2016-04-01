@@ -8,8 +8,8 @@ The script is written in c++, it uses the library boost (http://www.boost.org/) 
 
 #Option
  INPUT FILES
-  `-f <file> : fasta file which contains genome sequence(s).
-  -c <file> : tabular file which contains covtigs [sequence_name start_position end_position average_coverage].
+  `-f <file> : fasta file which contains genome sequence(s).`
+  `-c <file> : tabular file which contains covtigs [sequence_name start_position end_position average_coverage].`
   -j <file> : tabular file which contains junctions [sequence_name end_position_of_exon1 start_position_of_exon2 strand].
    strand is 1 for forward and -1 for reverse; only four first fields are taken into account.
   -P <file> : tabular file which contains proteic alignment phase information [sequence_name base_coordinate phase].
