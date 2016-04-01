@@ -45,7 +45,7 @@ The script is written in c++, it uses the library boost (http://www.boost.org/) 
 #Input
 Gmove reads **GFF2** and **GFF3** files. It recognizes some specific tags at column 3 : 
   - for files parse with the options `--rna` and `--prot`, it recognizes the tags **HSP** and **exon**
-  - for files parse with the option --annot, it recognizes the tags **UTR** and **CDS**
+  - for files parse with the option `--annot`, it recognizes the tags **UTR** and **CDS**
   
   ##Preparing the files
     The transcript/protein's id (in the last column of the GFF files ) has to be uniq.
@@ -53,6 +53,7 @@ Gmove reads **GFF2** and **GFF3** files. It recognizes some specific tags at col
     You should sort your files : the exon with the smaller position on the genome should be at the first line of the transcript. In this way Gmove can reconstruct the transcript/protein by just reading once the files. So be careful, when the strand is "-", Gmove needs to read the last exon first for a corresponding transcript/protein. 
     
     for a GFF2 file : `sort -k1,1 -k10,10 -k4,4n rna.gff > sortRna.gff`
+    
     for a GFF3 file :  `sort -k1,1 -k9,9 -k4,4n rna.gff > sortRna.gff`
 
 #Output
