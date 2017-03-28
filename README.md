@@ -1,12 +1,12 @@
 # Gmove
 
-#Dependencies
+# Dependencies
 The script is written in c++, it uses the library boost (http://www.boost.org/) and the library seqAn (http://www.seqan.de/). You should install them and change the path in the Makefile, before compiling it.
 
-#Running Gmove
+# Running Gmove
 `gmove -f <reference sequence> -c <covtigs> -j <junctions> -G <output gene models> {Options}`
 
-#Option
+# Option
 
 
      INPUT FILES
@@ -42,7 +42,7 @@ The script is written in c++, it uses the library boost (http://www.boost.org/) 
      -v        : silent mode
      -h        : this help
 
-#Input
+# Input
 Gmove reads **GFF2** and **GFF3** files. It recognizes some specific tags at column 3 : 
   - for files parse with the options `--rna` and `--prot`, it recognizes the tags **HSP** and **exon**
   - for files parse with the option `--annot`, it recognizes the tags **UTR** and **CDS**
@@ -56,12 +56,12 @@ Gmove reads **GFF2** and **GFF3** files. It recognizes some specific tags at col
     
     for a GFF3 file :  `sort -k1,1 -k9,9 -k4,4n rna.gff > sortRna.gff`
 
-#Output
+# Output
 The script will output a GFF or GTF file. 
 
 
 
-#Installation
+# Installation
 Install the dependencies
 
 Download the git repository
@@ -70,12 +70,12 @@ Change the path in the Makefile
 
 make gmove
 
-#License
+# License
 Gmove is distributed open-source under CeCILL FREE SOFTWARE LICENSE. Check out http://www.cecill.info/ for more information about the contents of this license.
 
-#Contact
+# Contact
 gmove [a] genoscope [.] cns [.] fr
 
 
-#Acknowledgments
+# Acknowledgments
 This work was financially supported by the Genoscope, Institut de Genomique, CEA and Agence Nationale de la Recherche (ANR), and France Génomique (ANR-10-INBS-09-08).
