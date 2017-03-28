@@ -8,40 +8,40 @@ The script is written in c++, it uses the library boost (http://www.boost.org/) 
 
 # Option
 
+    gmove - Gene modelling using various evidence.
 
-     INPUT FILES
+    Usage : gmove -f <reference sequence> --rna rna.gff {Options}
+    !! Note : Arguments with * are required, the other are optionnal !!
 
-     -f <file> : fasta file which contains genome sequence(s).
-     --annot <file> : annotation file in gff
-     --rna <file> : rna file in gff
-     --prot <file> : prot file in gff
-  
-     OUTPUT FILES
-     -o <folder> : output folder, by default (./out)
-  
-     Other option :
-     -S        : do not output single exon models.
-     -L <int>  : reduce the exon list size to -L parameters for each covtigs, default is 100.000.
-     -x <int>  : size of regions where to find splice site around covtigs boundaries, default is 0.
-                 if != 0, adds complexity to graph structure and to execution time.
-                 only works with canonical splice sites.
-     -e <int>  : minimal size of exons, default is 25 nucleotides.
-     -i <int>  : minimal size of introns, default is 9 nucleotides.
-     -m <int>  : maximal size of introns, default is 50.000 nucleotides.
-     -p <int>  : maximal number of paths inside a connected component, default is 10,000.
-     -b <int>  : number of nucleotides around exons boundaries where to find start and stop codons, default is 30.
-     -n <int>  : number of neighbour covtigs to test, default is 20.
-     -t        : gtf format annotation file - default is gff3
-     -u        : choose model strand according to longest ORF - only works if input junctions are non-oriented
-     -v        : silent mode
-     -h        : this help
+    INPUT FILES
+    *-f <file>          : fasta file which contains genome sequence(s).
+
+     --annot <file>     : annotation file in gff
+     --rna <file>               : rna file in gff
+     --prot <file>      : prot file in gff
+    OUTPUT FILES
+     -o <folder>        : output folder, by default (./out)
+     --raw              : output raw data
+
+     -S                 : do not output single exon models.
+     -e <int>   : minimal size of exons, default is 9 nucleotides.
+     -i <int>   : minimal size of introns, default is 9 nucleotides.
+     -m <int>   : maximal size of introns, default is 50.000 nucleotides.
+     -p <int>   : maximal number of paths inside a connected component, default is 10,000.
+     -b <int>   : number of nucleotides around exons boundaries where to find start and stop codons, default is 30.
+     -t         : gtf format annotation file - default is gff3
+     -u         : choose model strand according to longest ORF - only works if input junctions are non-oriented
+     --cds         : min size CDS, by default 100
+     -h         : this help
+     --ratio                        : ratio CDS/UTR min 80% de CDS
+
 
 # Input
 Gmove reads **GFF2** and **GFF3** files. It recognizes some specific tags at column 3 : 
   - for files parse with the options `--rna` and `--prot`, it recognizes the tags **HSP** and **exon**
   - for files parse with the option `--annot`, it recognizes the tags **UTR** and **CDS**
   
-  ##Preparing the files
+  ## Preparing the files
     The transcript/protein's id (in the last column of the GFF files ) has to be uniq.
 
     You should sort your files : the exon with the smaller position on the genome should be at the first line of the transcript. In this way Gmove can reconstruct the transcript/protein by just reading once the files. So be careful, when the strand is "-", Gmove needs to read the last exon first for a corresponding transcript/protein. 
