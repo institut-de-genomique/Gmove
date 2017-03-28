@@ -20,13 +20,25 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/connected_components.hpp>
 #include <boost/graph/astar_search.hpp>
-
-/*
-#include <boost/graph/random.hpp>
-#include <boost/random.hpp>
-#include <boost/graph/iteration_macros.hpp>
 #include <boost/graph/filtered_graph.hpp>
-*/
+
+#include <boost/graph/graph_traits.hpp>
+#include <boost/graph/graph_utility.hpp>
+
+//include for BFS
+#include<boost/graph/breadth_first_search.hpp>
+#include<boost/graph/visitors.hpp>
+#include <boost/pending/indirect_cmp.hpp>
+#include <boost/pending/integer_range.hpp>
+#include <boost/graph/named_function_params.hpp>
+
+#include <boost/config.hpp>
+#include <vector>
+#include <boost/pending/queue.hpp>
+#include <boost/graph/graph_traits.hpp>
+#include <boost/graph/graph_concepts.hpp>
+#include <boost/graph/visitors.hpp>
+#include <boost/graph/named_function_params.hpp>
 
 
 #include <iostream>
@@ -35,6 +47,7 @@
 #include <map>
 #include <vector>
 #include <list>
+#include<queue>
 #include <algorithm>
 
 
@@ -42,44 +55,29 @@ using namespace std;
 using namespace boost;
 
 struct Guid{ bool deleteVertex;};
+typedef boost::property<boost::vertex_color_t, boost::default_color_type> ColorPropertyType ;
 struct MyVertex{
 	Guid guid;
 	SSRContig* vertex;
+	string name;
+	ColorPropertyType color;
 };
 
 
+typedef boost::property<boost::edge_weight_t, int> EdgeWeightProperty;
 
 
-typedef adjacency_list<setS, vecS, bidirectionalS,MyVertex> Graph; //TODO put setS
-typedef adjacency_list< vecS, vecS, undirectedS> GraphU;
-typedef property_map<Graph, vertex_index_t>::type IndexMap;
+typedef adjacency_list<setS, vecS, bidirectionalS,MyVertex,EdgeWeightProperty > Graph;//setS vecS
+typedef property_map<Graph, edge_weight_t>::type EdgeWeightMap; //for filter graph
+typedef adjacency_list< vecS, vecS, undirectedS> GraphU; //vecS vecS
 typedef graph_traits<Graph>::vertex_iterator vertex_it;
 typedef graph_traits<Graph>::edge_iterator edge_it;
 typedef graph_traits<Graph>::out_edge_iterator out_edge_it;
 typedef graph_traits<Graph>::in_edge_iterator in_edge_it;
 typedef graph_traits<Graph>::vertices_size_type size_type;
-//typedef graph_traits <Graph>::vertex_property vertex_property;
 typedef graph_traits<Graph>::vertex_descriptor Vertex;
+typedef map<Vertex, size_t> IndexMappp;
 typedef graph_traits<Graph>::edge_descriptor edge_t; // (source,target)
-typedef map<Vertex, SSRContig*> IMap;
-
-/*
-
-struct vertex_hash:std::unary_function<Vertex, std::size_t>
-{
-    vertex_hash(Graph const& g):g(g){}
-
-    std::size_t operator()(Vertex const& v) const {
-    return g[v].guid.deleteVertex;
-  }
-
-  Graph const& g;
-};
-
-typedef boost::unordered_set<Vertex, vertex_hash> vertex_set;
-typedef filtered_graph<Graph,keep_all,is_not_in_subset<vertex_set> > FilteredGraph;
-*/
-
 typedef size_type* Rank;
 typedef Vertex* Parent;
 
@@ -87,77 +85,77 @@ typedef pair<s32,s32> Edge;
 typedef pair<s32,SSRContig*> Vertice;
 typedef list<SSRContig*> TSSRList;
 
-/*
-template <typename GraphType>
-std::size_t filtered_num_vertices(const GraphType& g)
-{
-    std::size_t total=0;
-    BGL_FORALL_VERTICES_T(v,g,GraphType){
-        ++total;
-    }
-    return total;
-}
+template < typename TimeMap > class bfs_time_visitor:public default_bfs_visitor {
+	  typedef typename property_traits < TimeMap >::value_type T;
+	public:
+	  bfs_time_visitor(TimeMap tmap, T & t):m_timemap(tmap), m_time(t) { }
+	  template < typename Vertex, typename Graph >
+	    void discover_vertex(Vertex u, const Graph & g) const
+	  {
+	    put(m_timemap, u, m_time++);
+	  }
+	  TimeMap m_timemap;
+	  T & m_time;
+	};
 
-template <typename GraphType>
-std::size_t filtered_num_edges(const GraphType& g)
-{
-    std::size_t total=0;
-    BGL_FORALL_EDGES_T(e,g,GraphType)
-    {
-        ++total;
-    }
-    return total;
-}
 
-*/
 
 class NetEx {
   
   TSSRList* _vertices;
   list<Edge>* _edges;
-  s32 _strand;
+  map<Edge,s32> _weightEdge;
   string _seqname;
   Graph _graph;
   s32 _nb_connected_components;
-  map<s32, SSRContig*> VertexMap;
-  
+
  public:
   
   /* Constructors and Destructors*/  
-  NetEx(TSSRList* exons, list<Edge>* edges, string &seqname) {
+  NetEx(TSSRList* exons, list<Edge>* ed, string &seqname,  map<Edge,s32> w) {
+
+
+	  IndexMappp mapIndexxx;
+	    associative_property_map<IndexMappp> propmapIndex(mapIndexxx);
+
+
+	  _nb_connected_components = 0 ;
     _vertices = exons;
-    _edges = edges;
+    _edges = ed;
     _seqname = seqname;
     _graph = Graph(_edges->begin(), _edges->end(), _vertices->size());
 
-   // map<int,Vertex >Vmap;
-  /*  IMap idxMap;
-    associative_property_map<IndexMap> iMap(idxMap);
-    int i = 0 ;
-*/
+    _weightEdge = w;
 
+
+    //TEST CREATION WEIGHTED EDGES
+    pair<edge_it, edge_it> p = edges(_graph);
+    for(edge_it it = p.first ; it != p.second ; it++) {
+    	s32 startEdge, endEdge;
+    	startEdge = source(*it, _graph);
+    	endEdge = target(*it, _graph);
+
+    	Edge pairEdge = make_pair(startEdge,endEdge);
+    	 map<Edge,s32>::iterator itWeightEdge = _weightEdge.find(pairEdge);
+    	 if(itWeightEdge != _weightEdge.end())
+    		 put(edge_weight_t(), _graph, *it, itWeightEdge->second);
+    }
     vertex_it vi, vi_end, next;
     	tie(vi, vi_end) = vertices(_graph);
-
-
+    	 int i=0;
     	for (next = vi; vi != vi_end; vi = next) {
     		TSSRList::iterator it1;
 			it1 = _vertices->begin();
 			int nb = *vi;
 			advance(it1,nb);
     		++next;
-    //		cout << num_vertices(_graph) << " numVertices " << *vi << " *vi" << endl;
     		_graph[*vi].guid.deleteVertex = false;
     		_graph[*vi].vertex = *it1;
+    		_graph[*vi].name = (*it1)->getName();
+    		 put(propmapIndex, (*vi), i++);
     	}
 
-
-    for(TSSRList::iterator it = exons->begin();it != exons->end();++it){
-
-    	VertexMap.insert(make_pair((*it)->getID(),*it));
-   // 	cout << " VertexMap " << (*it)->getID() << " " << *(*it) << endl;
-    }
-
+    	vertex_it b,e;
   }
   
   ~NetEx () {
@@ -170,22 +168,30 @@ class NetEx {
   TSSRList* getVertices() const { return _vertices; }
   list<Edge>* getEdges() const { return _edges; }
   string getSeqName() const { return _seqname; }
-  Graph* getGraph() { return &_graph; }
   s32 getNb_cc() { return _nb_connected_components; }
   
   /* Methods */
   vector<list<s32> > getComponents();
 
   list<list<int> > allPathsFinder(list<s32>&);
+
+  s32 nodeToVertex(s32 idNode);
+  void bfs(s32 s,map<s32,list < list<s32> > >& predM,map<s32,s32>);
+  void printMap (map<s32,list < list<s32> > > mapP);
+  list<list<s32> > PathsFinderWithCondition(list<s32> comp);
+  map<s32,s32> mapIdsVertextoBGL();
   void countVerticesAndEgdes(list<s32>&, s32&, s32&);
+  list<s32> sourcesNodes(list<s32>comp);
+  list<s32> endNodes(list<s32> comp);
   s32 count_allPaths(list<s32>&);
   s32 count_paths(s32, map<s32, s32>&);
   void compute_paths(s32, list<s32>&, map<s32, list<list<s32> > >&);
-  void graphOut();
+  void graphOut (string name);
   s32 nbCycle();
   void tagExons(map<string,s32>&,map<s32,TSSRList>&,map<s32,TSSRList>&,TSSRList& );
   void cleanGraph();
   void deleteNode();
+  void simplifyBigGraph(list<s32>,s32);
 };
 
 //Finding out cycles

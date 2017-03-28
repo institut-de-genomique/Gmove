@@ -66,11 +66,14 @@ vector<string>::iterator it;
   }
 
   /* covtig adds itself to its exons list */
-  SSRContig* exonSelf = new SSRContig(_seqname, _startpos, _endpos, _coverage, _wholeseq,strand); //FIXME memory leak
+  if((_endpos - _startpos + 1) >= SSRContig::MINSIZEEXON &&
+		  _startpos <= _endpos-SSRContig::MINSIZEEXON &&
+	 _endpos >= _startpos+SSRContig::MINSIZEEXON) {
+   SSRContig* exonSelf = new SSRContig(_seqname, _startpos, _endpos, _coverage, _wholeseq,strand); //FIXME memory leak
   exonSelf->setMaster(this);
   exonSelf->setTag(_tag);
   _exons.push_back(exonSelf);
-
+  }
   /* sorts all exons according to distance with covtig */
   _exons.sort(SortByDistWithMaster());
 }
@@ -150,21 +153,11 @@ s32 nbJunctions(SSRContig* exon1, SSRContig* exon2, DnaDictionary& dict, s32 min
     word.append(wordR);
     s32 nb = dict.nbOccWord(word);
     nbTot += nb;
-    //nbOffset++;
-    //if(nb >= SSRContig::MINCOVWORD2ORIENTATE) { nbThreshold++; }
     if(nb > 0) nbWords++;
     if(!first) oss << ",";
     first = 0;
     oss << nb;
-    //if(nb >= SSRContig::MINCOVSPLICESITES) { return nb; }
-    //cout << "TEST --------------> " << word << " nb=" << nb << endl;
   }
-  // Optimisation pour orienter les contigs les uns par rapport aux autres pour diminuer
-  // le nombre de jonctions  tester. Essai pas concluant, car retire de vrais jonctions.
-  //if(nbThreshold == nbOffset && exon1->strand() == exon2->strand()) {
-  //  if(exon1->getMaster()) { exon1->getMaster()->setStrand(exon1->strand()); }
-  //  if(exon2->getMaster()) { exon2->getMaster()->setStrand(exon2->strand()); }
-  //}
   // If the minimal number of different words detected is not higher than the treshold, return 0
   if(nbWords < SSRContig::MINNBWORD) nbTot = 0;
   listeJ = oss.str();

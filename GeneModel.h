@@ -29,11 +29,13 @@ class GeneModel {
   s32 _strand;
   string _seqname;
   s32 _indMod;
-  string _filename;
+  s32 _num_cc;
+  string _filename; //FIXME Why GeneModel contain filename ?
   list<s32> _path;
   TSSRList _exons;
   TSSRList* _whole_exons;
   
+
   pair<s32,s32> _cds;
   bool _start_found;
   bool _stop_found;
@@ -44,6 +46,8 @@ class GeneModel {
   s32 _ref_score;
   map<string, s32> _protPhaseCoord;
   s32 _model_size;
+  bool _toDelete;
+  s32 _cluster;
   
  public:
   static bool UNORIENTED;
@@ -51,9 +55,11 @@ class GeneModel {
   /* Constructors and Destructors*/
   GeneModel(list<s32>& path, TSSRList* listExons, string fname, s32 iter, s32 window, map<string, list<s32> >& probExons) { //FIXME why we give all of exon from _vertices
     _filename = fname;
+    _cluster = 0;
     _path = path;  
     _whole_exons = listExons;
-    _indMod = iter;
+    _num_cc = iter;
+    _indMod = 1;
     _start_found = 0;
     _stop_found = 0;
     _cds_size = 0;
@@ -63,16 +69,16 @@ class GeneModel {
     _3pXL = 0;
     _5pXL = 0;
     _ref_score = 0;
+    _toDelete = false;
     _protPhaseCoord = DefaultMap();
     for(list<s32>::iterator itP = _path.begin() ; itP != _path.end() ; itP++){
-
     	_exons.push_back(this->exon(*itP));
     	_model_size += this->exon(*itP)->size();
     	if(this->exon(*itP)->getPosNegID()) {
     		ostringstream oss;
     		oss << this->exon(*itP)->seqName() << "@" << this->exon(*itP)->start() << "@" << this->exon(*itP)->end();
     		string key = oss.str();
-    		cout << "key GeneModel " << key << endl;
+    	//	cout << "key GeneModel " << key << endl;
     		map<string, list<s32> >::iterator itPE;
     		itPE = probExons.find(key);
     		if(itPE == probExons.end()) {
@@ -92,10 +98,15 @@ class GeneModel {
   
   ~GeneModel() { }
   
+  friend ostream& operator<<(ostream&, const GeneModel&);
   /* Accessors */
-  TSSRList& getExons() { return _exons; }
+  bool getToDelete() const {return _toDelete;}
+  void setToDelete(bool b){_toDelete = b;}
+   TSSRList& getExons() { return _exons; }
   string getFilename() const { return _filename; }
-  s32 getID() { return _indMod; }
+  s32 getNumCC() const { return _num_cc; }
+  s32 getID() const { return _indMod; }
+  void setID(s32 id){_indMod = id;}
   string getSeqname() const { return _seqname; }
   list<s32>& getPath() { return _path; }
   pair<s32,s32> getCDS() const { return _cds; } 
@@ -103,26 +114,38 @@ class GeneModel {
   s32 getModelSize()const {return _model_size;}
   bool getStartFound()const { return _start_found;}
   bool getStopFound() const {return _stop_found;}
+  s32 get3pXL()const {return _3pXL;}
+  s32 get5pXL() const {return _5pXL;}
+  s32 getCdsSize() const {return _cds_size;}
+  s32 getCluster()const {return _cluster;}
+  s32 getStrand()const { return _strand;}
+  void setCluster(s32 num){_cluster = num;}
   
   /* Methods */
   bool findORF(const map<string, s32>& protPhaseCoord = DefaultMap());
   s32 selectORF(const map<string, s32>& protPhaseCoord = DefaultMap());
   s32 getPhaseScore(pair<s32, s32> orf, s32 strand, s32 mrna_len, const map<string, s32>& modelPhaseCoord = DefaultMap());
-  pair<s32,s32> longestORF(vector<s32> lStart, vector<s32> lStop,map<string,bool>&alreadyLookPos);
-  pair<s32,s32> bestORF(vector<s32> lStart, vector<s32> lStop, s32 strand, s32 mrna_len, s32& score,map<string,bool>& alreadyLookPos, const map<string,s32>& modelPhaseCoord = DefaultMap());
+  pair<s32,s32> longestORF(vector<s32> lStart, vector<s32> lStop);
+  pair<s32,s32> bestORF(vector<s32> lStart, vector<s32> lStop, s32 strand, s32 mrna_len, s32& score, const map<string,s32>& modelPhaseCoord = DefaultMap());
   void mapORF();
   SSRContig* exon(s32 id);
-  void formatGTF (ofstream &forf, s32 nbp);
-  void printAnnot(ofstream &forf, s32 nbp, bool format);
-  void formatGFF (ofstream &forf, s32 nbp);
+  void formatGTF (ofstream &forf);
+  void printAnnot(ofstream &forf, bool format);
+  void formatGFF (ofstream &forf);
+
   void keepModel(map<string,GeneModel>& mapGeneModel);
+  bool cdsIsMono(void);
+  list<pair<s32,s32> > getExonsCds();
 
   bool overlapOrf(pair<s32,s32>);
+  bool overlapOrf(GeneModel model2);
+  bool overlapModel(GeneModel model2);
+
+
+
 };
 
 char complem (char base);
-void selectModel( map<string,GeneModel> mapGeneModel);
 void selectModel(map<s32, list<GeneModel> >&);
-void selectModel(list<GeneModel>& );
 
 #endif

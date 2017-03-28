@@ -9,7 +9,6 @@
 
 #include "NetEx.h"
 
-
 // void NetEx::getStats (){
 //   ofstream filestat;
 //   filestat.open("models.stats");
@@ -45,74 +44,56 @@
 
 
 //** graph outputting (dot format)  **//
-void NetEx::graphOut (){
-	/*
-	 * // Graph structure with customized property output
-		template < typename VertexAndEdgeListGraph, typename VertexPropertyWriter >
-	void write_graphviz(std::ostream& out, const VertexAndEdgeListGraph& g, VertexPropertyWriter vpw);
-	 *
-	 * typedef boost::adjacency_list<boost::listS, boost::vecS, boost::directedS,
-    boost::property<boost::vertex_name_t, unsigned int,
-    boost::property<boost::vertex_index_t, unsigned int> >,
-    boost::property<boost::edge_name_t, unsigned int> > Graph;
-
-  *  typedef boost::property_map<Graph, boost::vertex_name_t>::type VertexNameMap;
-  *  VertexNameMap vname_map1 = get(boost::vertex_name, graph1);
-  * write_graphviz(file_graph1, graph1,
-                     make_label_writer(vname_map1),
-                     make_label_writer(ename_map1));
-	 */
-  string filename = _seqname;
+void NetEx::graphOut (string filename){
   stringstream ss;
   ss << "Model.dot";
   filename += ss.str();
   filename = "dot_files/"+filename;
   ofstream ofs( filename.c_str() );
-  int i = 0;
-  list<string> listLabel;
-  for(TSSRList::iterator it = _vertices->begin(); it != _vertices->end(); ++it) {
-
-	SSRContig* ctg = *it;
-	stringstream tmpLabel;
-	tmpLabel<< ctg->getID()<<" "<< ctg->start() <<"-" << ctg->end();
-	string tmpLabel2 = tmpLabel.str();//convert( ctg->start(),ctg->end());//tmpLabel.str();
-	listLabel.push_back(tmpLabel2);
-	++i;
-   }
-  char* name;
-  for(std::list<string>::const_iterator it = listLabel.begin(); it != listLabel.end(); ++it){
-	  strcat(name, it->c_str());
-  }
- write_graphviz(ofs, _graph,make_label_writer((const char *)name));
+  write_graphviz(ofs, _graph,make_label_writer(get(&MyVertex::name, _graph) ) , make_label_writer(get(edge_weight, _graph)));
 }
 
 // to count the number of vertices (exons) and edges (introns) in the graph
 void NetEx::countVerticesAndEgdes(list<s32>& comp, s32& nbVertices, s32& nbEdges) {
-  for (list<s32>::iterator j = comp.begin(); j != comp.end(); j++) {
-    nbVertices++;
-    for (pair<out_edge_it, out_edge_it> p = out_edges(*j, _graph) ; p.first != p.second ; ++p.first ) nbEdges++;
-  }
+	nbVertices = comp.size();
+	for (list<s32>::iterator j = comp.begin(); j != comp.end(); j++)
+		nbEdges += out_degree(*j,_graph);
 }
 
+list<s32> NetEx::sourcesNodes(list<s32>comp){
+	 list<s32> sources;
+	 for (list<s32>::iterator j = comp.begin(); j != comp.end() ; j++) {
+		 if(!in_degree(*j, _graph))
+			sources.push_back(*j);
+	 }
+	 return sources;
+}
+list<s32> NetEx::endNodes(list<s32> comp){
+	list<s32> end;
+	 for (list<s32>::iterator j = comp.begin(); j != comp.end() ; j++) {
+	    if (!out_degree(*j, _graph)){
+			end.push_back(*j);
+	    }
+	 }
+	 return end;
+}
 // to count the number of paths in a connected component
 s32 NetEx::count_allPaths(list<s32>& comp) {
   list<s32> sources;
   map<s32, s32> subs;
   
-  for (list<s32>::iterator j = comp.begin(); j != comp.end(); ++j) {
+  for (list<s32>::iterator j = comp.begin(); j != comp.end() ; j++) {
     if (!out_degree(*j, _graph))
       subs[*j] = 1;
-    
-    if(!in_degree(*j, _graph)) {
-    	sources.push_back(*j);
-    }
-  }
 
+    if(!in_degree(*j, _graph))
+    	sources.push_back(*j);
+  }
   s32 total = 0;
   for (list<s32>::iterator itm = sources.begin() ; itm != sources.end(); itm++) { 
     s32 tmp = count_paths(*itm, subs);
     if(tmp!=-1) total += tmp;
-    else {return -1;}
+    else return -1;
   }
   return total;
 }
@@ -134,86 +115,182 @@ s32 NetEx::count_paths(s32 node, map<s32, s32>& subs) {
   return total;
 }
 
-/* Ancienne version
-s32 NetEx::count_allPaths(list<s32>& comp) {
-  list<s32> sources;
-  map<s32,s32> targets;
-  s32 count = 0;
-
-  for (list<s32>::iterator j = comp.begin(); j != comp.end(); j++) {
-    if(!out_degree(*j, _graph)) targets[*j]++;
-    if(!in_degree(*j, _graph)) sources.push_back(*j);
-  }
-  
-  for (list<s32>::iterator itm = sources.begin() ; itm != sources.end(); itm++) { 
-    if(count == 0) count++;
-    count_paths(*itm, count, targets);
-  }
-  return count;
-}
-
-void NetEx::count_paths(s32 root, s32& count, map<s32,s32>& ends) {
-  for (pair<out_edge_it, out_edge_it> p = out_edges(root, _graph) ; p.first != p.second ; ++p.first ){
-    s32 vtarget = target(*p.first, _graph);
-    if( ends.find(vtarget) != ends.end() ) count++;
-    count_paths(vtarget, count, ends);
-  }
-}
-*/
-
+//NetEx::
 // all paths finder 
-list<list<s32> > NetEx::allPathsFinder(list<s32>& comp) {
-//	cout << " allPathsFinder "<< endl;
+list<list<s32> > NetEx::allPathsFinder(list<s32>& comp) {//XXX Je ne comprend pas cette fonction. Bcp d'aller retour pour trouver les chemins. Il doit y avoir un moyen plus simple de le faire
   list<list<s32> > selectedPaths;
   list<s32> sources;
   // AJOUT MAX
   map<s32, list<list<s32> > > solved;
   list<s32> tlist(1, 0);
   for (list<s32>::iterator j = comp.begin(); j != comp.end(); ++j) {
-
     if(!out_degree(*j, _graph)) {
-      // AJOUT MAX
-      // Ajout des noeuds terminaux comme solutions
-    	TSSRList::iterator it1 = _vertices->begin();
-    	       advance(it1,*j);
-    	        int idVertex = (*it1)->getID();
-    	   //     cout << "j " << *j << *(*it1) << endl;
-      tlist.front() = idVertex;
-       solved[idVertex].push_back(tlist);
+		// AJOUT MAX
+		// Ajout des noeuds terminaux comme solutions
+		s32 idVertex = nodeToVertex(*j);
+		tlist.front() = idVertex; //FIXME Why is it a list ?
+		solved[idVertex].push_back(tlist);
     }
-    if(!in_degree(*j, _graph)) {
-    	 sources.push_back(*j);
-    //	 cout << " sources j " << *j << endl;
-    }
-
   }
-
+  sources = sourcesNodes(comp);
   // Liste vide indiquant le chemin parcouru
   list<s32> start;
   for (list<s32>::iterator itm = sources.begin(); itm != sources.end(); ++itm) {
     start.clear();
     compute_paths(*itm, start, solved);
-
   }
+
   // AJOUT MAX :
   // Fusion des chemins pour chaque source => résultat
   for (list<s32>::iterator it=sources.begin(); it != sources.end(); ++it) {
-    // On utilise splice car on a plus besoin de solved => on ne créé donc pas de copies
-		TSSRList::iterator it1 = _vertices->begin();
-	    advance(it1,*it);
-	//    cout << " path sources " << *it << " " << *(*it1) << endl;
-    selectedPaths.splice(selectedPaths.end(), solved[(*it1)->getID()]);
+	// On utilise splice car on a plus besoin de solved => on ne créé donc pas de copies
+	s32 idNode = nodeToVertex(*it);
+	selectedPaths.splice(selectedPaths.end(), solved[idNode]);
   }
   return selectedPaths;
 }
+
+void NetEx::printMap (map<s32,list < list<s32> > > mapP){
+	cout <<"print map map.size() " << mapP.size()<< " " ;
+	for(map<s32,list < list<s32> > >::iterator it =  mapP.begin(); it != mapP.end(); ++it){
+		cout << " ["<<it->first << "] " ;
+		for(list< list <s32> >:: iterator itT = it->second.begin(); itT != it->second.end(); ++itT){
+			for(list <s32 >::iterator itTT = itT->begin() ; itTT != itT->end(); ++itTT){
+				cout << *itTT <<" ";
+			}
+			cout <<  "\t\\\t";
+		}
+		cout << endl;
+	}
+	cout << endl;
+}
+
+s32 NetEx::nodeToVertex(s32 id){
+	TSSRList::iterator it1 = _vertices->begin();
+	advance(it1,id);
+	s32 childId = (*it1)->getID();
+	return childId;
+}
+void NetEx::bfs(s32 startId,map<s32,list < list<s32> > >& paths , map<s32,s32> vertexToBGL){
+	out_edge_it ei, ei_end;
+	std::queue<s32> Qbfs ;
+	Qbfs.push(startId);
+	while (! Qbfs.empty()) {
+		s32 parentId = Qbfs.front(); Qbfs.pop();
+		map<s32,s32>::iterator itVB = vertexToBGL.find(parentId);
+		if(itVB == vertexToBGL.end()){
+			cerr << "error do not find id in vertex "<< parentId<<endl;
+			exit(1);
+		}
+		s32 idNodeParent = itVB->second;
+		map<s32,list<list <s32> > >::iterator itPathParent = paths.find(parentId);
+		//for mono exoniques
+		if(out_degree(idNodeParent,_graph) == 0 && itPathParent == paths.end()){
+			list<s32> newPath;
+			list<list<s32> > newList;
+			newPath.push_back(parentId);
+			newList.push_back(newPath);
+			paths.insert(make_pair(parentId,newList));
+		}
+		for (tie(ei, ei_end) = out_edges(idNodeParent, _graph); ei != ei_end; ++ei) {
+			s32 childId = nodeToVertex(target(*ei, _graph));
+			map<s32,list<list <s32> > >::iterator itPathChild = paths.find(childId);
+			if(itPathChild != paths.end()){ // update Qbfs
+				for(list<list <s32> >::iterator itListPathChild = itPathChild->second.begin(); itListPathChild != itPathChild->second.end();++itListPathChild){
+					list<s32>::iterator itLL;
+					itLL = std::find(itListPathChild->begin(), itListPathChild->end(), parentId);
+					if(itLL != itListPathChild->end())
+						break;
+					else
+						Qbfs.push(childId);
+				}
+			}
+			else
+				Qbfs.push(childId);
+
+			//Start BFS
+			if(itPathChild == paths.end()){//if PathChild doesnt exist
+				list<list<s32> > newList;
+				if(itPathParent != paths.end()){//if Parent contains a path
+					for(list<list <s32> >::iterator itListPathParent = itPathParent->second.begin(); itListPathParent != itPathParent->second.end();++itListPathParent){
+						list<s32> newPath;
+						for(list<s32>::iterator itL = itListPathParent->begin() ; itL != itListPathParent->end() ; ++itL){
+							newPath.push_back(*itL);
+						}
+						newPath.push_back(childId);
+						newList.push_back(newPath);
+					}
+					paths.insert(make_pair(childId,newList));
+				}
+				else{
+					list<s32> newPath;
+					newPath.push_back(parentId);
+					newPath.push_back(childId);
+					newList.push_back(newPath);
+					if (paths.find(childId) != paths.end()){
+						cout << "Error child id already in predListList " <<endl;
+						exit(1);
+					}
+					paths.insert(make_pair(childId,newList));
+				}
+			}
+			else{
+				list<list <s32> > copyList(paths[parentId]);
+				for(list<list <s32> >::iterator itCopyList = copyList.begin(); itCopyList != copyList.end();++itCopyList){
+					itCopyList->push_back(childId);
+				}
+				itPathChild->second.merge(copyList);
+				itPathChild->second.unique();
+			}
+		}
+	}//While
+}
+
+map<s32,s32> NetEx::mapIdsVertextoBGL(){
+	map<s32,s32> vertexToBGL;
+	vertex_it currentNode,endNode;
+	for (tie(currentNode,endNode) = boost::vertices(_graph); currentNode!=endNode; ++currentNode){
+		s32 idNode = nodeToVertex(*currentNode);
+		if(vertexToBGL.find(idNode) != vertexToBGL.end()){
+			cerr << "errors ids already known " << endl;
+			exit(1);
+		}
+		vertexToBGL.insert(make_pair(idNode,*currentNode));
+	}
+return vertexToBGL;
+}
+
+
+list<list<s32> > NetEx::PathsFinderWithCondition(list<s32> comp){
+	list<s32> sources = sourcesNodes(comp);
+	map<s32,list < list<s32> > >predM;
+	list<s32> endList = endNodes(comp);
+	list<list<s32> > paths;
+	map<s32,s32> vertexToBGL;
+	s32 idVertex ;
+	vertexToBGL = mapIdsVertextoBGL();
+
+	for(list<s32>::iterator itSources = sources.begin() ; itSources != sources.end() ; ++itSources){
+		idVertex = nodeToVertex(*itSources);
+		predM.clear();
+		bfs( idVertex,predM, vertexToBGL);
+//		printMap(predM);
+		for(list<s32>::iterator itEnd = endList.begin() ; itEnd != endList.end() ; ++itEnd){
+			s32 childId = nodeToVertex(*itEnd);
+			map<s32,list < list<s32> > >::iterator itPred = predM.find(childId);
+			paths.splice(paths.end(), predM[childId]);
+		}
+	}
+	 return paths;
+}
+
 
 // NOUVEAU allpath - to compute paths a lot faster than before
 void NetEx::compute_paths(s32 node, list<s32>& path, map<s32, list<list<s32> > >& solved) {
   list<s32> tmp_path = path; 
   // On est arrivé sur un noeud déjà connu ?
-  TSSRList::iterator it1 = _vertices->begin();
-       advance(it1,node);
-        int idVertex = (*it1)->getID();
+
+  s32 idVertex = nodeToVertex(node);
   if (solved.find(idVertex) != solved.end()) {
     list<s32> final_path;
     list<s32> *path_ref;
@@ -223,7 +300,6 @@ void NetEx::compute_paths(s32 node, list<s32>& path, map<s32, list<list<s32> > >
     // On ajoute tous les sous chemins à la liste résolue
     while(tmp_path.begin() != tmp_path.end()) {
      start_node = tmp_path.front();
-
       // On concatène le chemin courant avec la solution trouvée
       for (solved_path=solved[idVertex].begin(); solved_path != solved[idVertex].end(); ++solved_path) {
 		solved[start_node].push_back(tmp_path);
@@ -240,52 +316,28 @@ void NetEx::compute_paths(s32 node, list<s32>& path, map<s32, list<list<s32> > >
       compute_paths(target(*p.first, _graph), tmp_path, solved);
     }
   }
-
-
 }
 
 // test allpath
-/*
-void NetEx::all_paths(s32 root, list<s32>& path, list<list<s32> >& path_list, map<s32,s32>& ends) {
-  list <s32> loc_list;
-  for (pair<out_edge_it, out_edge_it> p = out_edges(root, _graph) ; p.first != p.second ; ++p.first ){
-    loc_list = path;
-    s32 vtarget = target(*p.first, _graph);
-    loc_list.push_back(vtarget);
-    if( ends.find(vtarget) != ends.end() ) path_list.push_back(loc_list);
-    all_paths(vtarget, loc_list, path_list, ends);
-  }
-}
-*/
-
 // to retrieve all connected components of the graph
 vector<list<s32> > NetEx::getComponents() {
-
   GraphU gU(_vertices->size());
   pair<edge_it, edge_it> p = edges(_graph);
   for(edge_it it = p.first ; it != p.second ; it++) {
-	  add_edge(source(*it, _graph), target(*it, _graph), gU);
-	//  cout << " add edge *it " <<source(*it, _graph) << " " <<  target(*it, _graph)<< endl;
+	 add_edge(source(*it, _graph), target(*it, _graph), gU);
   }
-
   std::vector<int> component(num_vertices(gU));
   _nb_connected_components = connected_components(gU, &component[0]);
   vector<list<s32> > cc(_nb_connected_components);
   for (s32 i=0 ; i < (s32)component.size() ; i++){
-	//  TSSRList::iterator it1 = _vertices->begin();
-	 // advance(it1,i);
-	  //cc[component[i]].push_back((*it1)->getID());
-//	  cout << " i " << i << endl;
- 	  cc[component[i]].push_back(i);
+	  cc[component[i]].push_back(i);
   }
-//  cout << " get component "<< cc.size() << endl;
   return cc;
 }
 
 
 //to find out whether the graph has cycles..
 s32 NetEx::nbCycle() {
-//	cout << " enter in nbCycle "<<endl;
   bool has_cycle = false;
   int count_cycle=0;
   cycle_detector vis(has_cycle, count_cycle);
@@ -298,32 +350,12 @@ void NetEx::tagExons(map<string,s32>& inExon, map<s32,TSSRList>& mapStartExon,ma
 		SSRContig* ctg = *itComponent;
 		if(!in_degree(ctg->getID(), _graph) && !out_degree(ctg->getID(), _graph))
 			monoExon.push_back(ctg);
-		else if(!in_degree(ctg->getID(), _graph)){
-			if((*itComponent)->tag() != "d"){
-				//cerr << "\nerror tagExons start is " << (*itComponent)->tag()  << endl;
-				//exit(1);
-			}
-
-		//	startExon.push_back(*itComponent);
-	//		if((*itComponent)->strand()== SSRContig::FORWARD) mapStartExon[(*itComponent)->end()].push_back(*itComponent);
-	//		else endExon.push_back(*itComponent);
+		else if(!in_degree(ctg->getID(), _graph))
 			mapStartExon[(*itComponent)->end()].push_back(*itComponent);
-		}
 
-		else if(!out_degree(ctg->getID(), _graph)){
-			if((*itComponent)->tag() != "f"){
-						//	cerr << "\nerror tagExons end is " << (*itComponent)->tag()<< " "<< *(*itComponent)  << endl;
-						//	exit(1);
-						}
-		//	if((*itComponent)->strand()== SSRContig::FORWARD) endExon.push_back(*itComponent);
-		//	else mapStartExon[(*itComponent)->end()].push_back(*itComponent);
+		else if(!out_degree(ctg->getID(), _graph))
 			mapEndExon[(*itComponent)->start()].push_back(*itComponent);
-		}
 		else{
-			if((*itComponent)->tag() != "i"){
-						//	cerr << "\n error tagExons in is " << (*itComponent)->tag()  << endl;
-						//	exit(1);
-						}
 			 SSRContig* exon = *itComponent;
 			 ostringstream oss;
 			 oss << exon->seqName() << "@" << exon->start() << "@" << exon->end() << "@" << exon->strand();
@@ -331,7 +363,6 @@ void NetEx::tagExons(map<string,s32>& inExon, map<s32,TSSRList>& mapStartExon,ma
 			 inExon.insert(make_pair(key,exon->getID()));
 		}
 	}
-//	cout << " ***** number of mono " << monoExon.size() << endl;
 }
 
 
@@ -339,17 +370,13 @@ void NetEx::cleanGraph(){
 	 cerr << " Before cleaning, number vertices " << num_vertices(_graph) << " number edges "<< num_edges(_graph)<<endl;
 	//it will clean the component regarding the start and end exons.
 	s32 left,right,left2,right2;
-	//list<s32> deleteList;
 	//Tag exons
 	int deleteMono = 0;
 	TSSRList listMono; // OutExon = exons at begin or end of the graph, inExon = exons intern of the graph
-//	TSSRList startExon,endExon;
 	map<s32,TSSRList> mapStartExon, mapEndExon;
 	map<string,s32> inExon;
 	tagExons(inExon,mapStartExon,mapEndExon,listMono); //TODO change tag Exon
-//	cout << " number of mono " << listMono.size() << endl;
 	//TODO sort exon by pos and length !
-//	s32 newLeft ;
 
 	//fusionne les exons start
 	for(map<s32,TSSRList>::iterator itMap = mapStartExon.begin(); itMap != mapStartExon.end(); ++itMap){
@@ -365,26 +392,31 @@ void NetEx::cleanGraph(){
 							s32 outEdge = target(*pEdges.first, _graph);
 							edge_t e; bool b;
 							tie(e,b) = add_edge(ctgStart->getID(),outEdge, _graph); //For the moment id in vertices and graph are equal
+							s32 formerWeight =  get(edge_weight_t(), _graph,*pEdges.first);
+							formerWeight += get(edge_weight_t(), _graph,e);
+							put(edge_weight_t(), _graph, e, formerWeight);
 						}
 						clear_vertex(ctgNext->getID(),_graph); //clear all edges before removing the vertex
 						_graph[ctgNext->getID()].guid.deleteVertex = true;
-					//	deleteList.push_back(ctgNext->getID());
 					}
 					else {//we delete the current
 						for (pair<out_edge_it, out_edge_it> pEdges = out_edges(ctgStart->getID(), _graph); pEdges.first != pEdges.second; ++pEdges.first){
 							s32 outEdge = target(*pEdges.first, _graph);
 							edge_t e; bool b;
 							tie(e,b) = add_edge(ctgNext->getID(),outEdge, _graph);
+							s32 formerWeight =  get(edge_weight_t(), _graph,*pEdges.first);
+							formerWeight += get(edge_weight_t(), _graph,e);
+							put(edge_weight_t(), _graph, e, formerWeight);
+
 						}
 						clear_vertex(ctgStart->getID(),_graph); //clear all edges before removing the vertex
 						_graph[ctgStart->getID()].guid.deleteVertex = true;
-
-						//deleteList.push_back(ctgStart->getID());
 					}
 				}
 			}
 			--itCurrent;
 			if(_graph[ctgStart->getID()].guid.deleteVertex == true) continue;
+			//Fusionne mono FIXME Good idea to do it here ?
 			for(TSSRList::iterator itMono = listMono.begin(); itMono != listMono.end(); ++itMono){
 				if((*itMono)->strand() != ctgStart->strand()) continue;
 				if((*itMono)->start() <= ctgStart->start() && (*itMono)->end()<= ctgStart->end() && overlap(ctgStart,*itMono) ){
@@ -393,9 +425,13 @@ void NetEx::cleanGraph(){
 					 ++deleteMono;
 				}
 			}
-
 		}
 	}
+//	ostringstream convert;
+//					convert << itMap->first;
+//					string tmp = convert.str();
+//				this->graphOut("tmp");
+
 	// simplification pour endExon
 	for(map<s32,TSSRList>::iterator itMap = mapEndExon.begin(); itMap != mapEndExon.end(); ++itMap){
 		for(TSSRList::iterator itCurrent = itMap->second.begin() ; itCurrent != itMap->second.end();++itCurrent){
@@ -403,61 +439,71 @@ void NetEx::cleanGraph(){
 			if ( _graph[ctgStart->getID()].guid.deleteVertex == true) continue;
 			for(TSSRList::iterator itNext = ++itCurrent ; itNext  != itMap->second.end();++itNext){
 				SSRContig* ctgNext = *itNext;
+			//	cout << "Change Next " << endl;
 				if(ctgStart->strand() != ctgNext->strand()) continue;
 				leftRight(ctgStart,left,right);
 				leftRight(ctgNext,left2,right2);
 				if(overlap(ctgStart, ctgNext) && ctgStart->start() == ctgNext->start()){
 					if(ctgStart->size() > ctgNext->size()){ // we keep current and delete next
+				//		cout << "endExon start "<< ctgStart->start() << " " << ctgStart->end() << "\t";
+				//		cout << " end " << ctgNext->start() << " " << ctgNext->end() << endl;
 						for (pair<in_edge_it, in_edge_it> pEdges = in_edges(ctgNext->getID(), _graph); pEdges.first != pEdges.second; ++pEdges.first){
 							s32 inEdge = source(*pEdges.first, _graph);
 							edge_t e; bool b;
+				//			cout << "inEdge " << inEdge << " ctgStart->getID() " << ctgStart->getID() << " start "<< ctgStart->start() << " end " << ctgStart->end() << endl;
 							tie(e,b) = add_edge(inEdge,ctgStart->getID(), _graph);
+							s32 formerWeight =  get(edge_weight_t(), _graph,*pEdges.first);
+				//			cout << "formerWeight "<< formerWeight << "\t";
+							formerWeight += get(edge_weight_t(), _graph,e);
+				//			cout << " newWeight " << formerWeight << endl;
+							put(edge_weight_t(), _graph, e, formerWeight);
+				//			ostringstream convert;
+				//			convert << inEdge;
+				//			string tmp = convert.str();
+				//		this->graphOut(tmp);
 						}
 					 clear_vertex(ctgNext->getID(),_graph); //clear all edges before removing the vertex
 					 _graph[ctgNext->getID()].guid.deleteVertex = true;
-			//		 cout << "delete "<<*ctgNext <<endl;
-				//	 deleteList.push_back(ctgNext->getID());
+
 					}
 					else{ //if (deleteList.find(itCurrent) == deleteList.end()){//we delete the current
+				//		cout << "endExon end "<< ctgNext->start() << " " << ctgNext->end() << endl;
 						for (pair<in_edge_it, in_edge_it> pEdges = in_edges(ctgStart->getID(), _graph); pEdges.first != pEdges.second; ++pEdges.first){
 							s32 inEdge = source(*pEdges.first, _graph);
 							edge_t e; bool b;
 							tie(e,b) = add_edge(inEdge,ctgNext->getID(), _graph);
+							s32 formerWeight =  get(edge_weight_t(), _graph,*pEdges.first);
+							formerWeight += get(edge_weight_t(), _graph,e);
+							put(edge_weight_t(), _graph, e, formerWeight);
 						}
-				//		deleteList.push_back(ctgStart->getID());
 						clear_vertex(ctgStart->getID(),_graph); //clear all edges before removing the vertex
 						_graph[ctgStart->getID()].guid.deleteVertex = true;
 					}
 			 }
 		 }
 			--itCurrent;
-			if(_graph[ctgStart->getID()].guid.deleteVertex == true) continue;
+			if(_graph[ctgStart->getID()].guid.deleteVertex == true)
+				continue;
+			//Fusionne mono FIXME Good idea to do it here ?
 			for(TSSRList::iterator itMono = listMono.begin(); itMono != listMono.end(); ++itMono){
-				if((*itMono)->strand() != ctgStart->strand()) continue;
-							if((*itMono)->start() >= ctgStart->start() && (*itMono)->end()>= ctgStart->end() && overlap(ctgStart,*itMono)){
-							ctgStart->setEnd((*itMono)->end());
-								_graph[(*itMono)->getID()].guid.deleteVertex = true;
-								 ++deleteMono;
-							}
-						}
-
-		 if(_graph[ctgStart->getID()].guid.deleteVertex == true){
-	//		 cout << "deleteVertex = True " << *ctgStart << endl;
+				if((*itMono)->strand() != ctgStart->strand())
+					continue;
+				if((*itMono)->start() >= ctgStart->start() && (*itMono)->end()>= ctgStart->end() && overlap(ctgStart,*itMono)){
+					ctgStart->setEnd((*itMono)->end());
+					_graph[(*itMono)->getID()].guid.deleteVertex = true;
+					++deleteMono;
+					}
+			}
+		 if(_graph[ctgStart->getID()].guid.deleteVertex == true)
 			 continue;
-		 }
-
 		 //fusionne stat/end exons
 		 for(map<s32,TSSRList>::iterator itMapStart = mapStartExon.begin(); itMapStart != mapStartExon.end(); ++itMapStart){
 			 for(TSSRList::iterator itCurrentStart = itMapStart->second.begin() ; itCurrentStart != itMapStart->second.end();++itCurrentStart){
-				 if(_graph[ (*itCurrentStart)->getID()].guid.deleteVertex == true){
-		// 				 cout << "deleteVertex = True " << *(*itCurrentStart) << endl;
+				 if(_graph[ (*itCurrentStart)->getID()].guid.deleteVertex == true)
 					 continue;
-				 }
-		 		 if(!overlap(*itCurrent,*itCurrentStart) || (*itCurrent)->strand() != (*itCurrentStart)->strand()) continue;
+		 		 if(!overlap(*itCurrent,*itCurrentStart) || (*itCurrent)->strand() != (*itCurrentStart)->strand())
+		 			 continue;
 	 			 if(ctgStart->start() <= (*itCurrentStart)->start() && ctgStart->end() <= (*itCurrentStart)->end() &&ctgStart->end() !=  (*itCurrentStart)->start() ){
-		 		//		 cout << "*********** We have to clean that "<< ctgStart->start() << "  " << ctgStart->end() << " " <<  (*itCurrentStart)->start()<< " " <<(*itCurrentStart)->end() << endl;
-		 		//		cout << "vertices size " << _vertices->size() << " num vertices in graph " << num_vertices(_graph);
-	 				 Tstrand strandT = ctgStart->strand();
 		 			 SSRContig* newCtg = new SSRContig(*ctgStart);//FIXME memory leak
 		 			 newCtg->setEnd((*itCurrentStart)->end());
 		 			 newCtg->setID(_vertices->size());
@@ -470,18 +516,21 @@ void NetEx::cleanGraph(){
 		 				 _vertices->push_back(newCtg);
 		 				 Vertex u = boost::add_vertex(_graph);
 		 				 _graph[u].vertex = newCtg;
-		 		//		 cout << " vertices size " << _vertices->size() << " num vertices in graph " << num_vertices(_graph)<< endl;
 		 				 for (pair<out_edge_it, out_edge_it> pEdges = out_edges((*itCurrentStart)->getID(), _graph); pEdges.first != pEdges.second; ++pEdges.first){
 		 					 s32 outEdge = target(*pEdges.first, _graph);
 		 					 edge_t e; bool b;
 		 					 tie(e,b) = add_edge(newCtg->getID(),outEdge, _graph); //For the moment id in vertices and graph are equal
-		 		//							 cout << " we put the edge " << e << endl;
+		 					s32 formerWeight =  get(edge_weight_t(), _graph,*pEdges.first);
+		 					formerWeight += get(edge_weight_t(), _graph,e);
+		 					put(edge_weight_t(), _graph, e, formerWeight);
 		 				 }
 		 				 for (pair<in_edge_it, in_edge_it> pEdges = in_edges(ctgStart->getID(), _graph); pEdges.first != pEdges.second; ++pEdges.first){
 		 					 s32 inEdge = source(*pEdges.first, _graph);
 		 					 edge_t e; bool b;
 		 					 tie(e,b) = add_edge(inEdge,newCtg->getID(), _graph);
-		 		//								 cout << " we put the edge " << e  << endl;
+		 					s32 formerWeight =  get(edge_weight_t(), _graph,*pEdges.first);
+		 					formerWeight += get(edge_weight_t(), _graph,e);
+		 					put(edge_weight_t(), _graph, e, formerWeight);
 		 				}
 		 			}
 		 			else{
@@ -489,94 +538,89 @@ void NetEx::cleanGraph(){
 		 					s32 outEdge = target(*pEdges.first, _graph);
 		 					edge_t e; bool b;
 		 					tie(e,b) = add_edge(itKey->second,outEdge, _graph); //For the moment id in vertices and graph are equal
-		 				//			 									 cout << " we put the edge " << e << endl;
+		 					s32 formerWeight =  get(edge_weight_t(), _graph,*pEdges.first);
+		 					formerWeight += get(edge_weight_t(), _graph,e);
+		 					put(edge_weight_t(), _graph, e, formerWeight);
 		 				}
 		 				for (pair<in_edge_it, in_edge_it> pEdges = in_edges(ctgStart->getID(), _graph); pEdges.first != pEdges.second; ++pEdges.first){
 		 					s32 inEdge = source(*pEdges.first, _graph);
 		 					edge_t e; bool b;
 		 					tie(e,b) = add_edge(inEdge,itKey->second, _graph);
-		 				//			 										 cout << " we put the edge " << e  << endl;
+		 					s32 formerWeight =  get(edge_weight_t(), _graph,*pEdges.first);
+		 					formerWeight += get(edge_weight_t(), _graph,e);
+		 					put(edge_weight_t(), _graph, e, formerWeight);
 		 				}
 		 			}
 		 		}
 			 }
 		 }
 		}
+
 	}
-	 /*
-	 	 vertex_hash hasher(_graph);
-	 	 vertex_set removed(0,hasher);
-	 	 FilteredGraph fg(_graph,boost::keep_all(),removed);
-
-	 	    BGL_FORALL_VERTICES(_vertices,_graph,Graph)
-	 	    {
-	 	        if (_graph[_vertices].guid.deleteVertex) {
-	 	            removed.insert(_vertices);
-	 	        }
-	 	    }
-	 	    std::cout << "After: " << filtered_num_vertices(fg) << " vertices and " << filtered_num_edges(fg) << " edges\n"; //num_vertices and num_edges don't work for filtered_graphs
-	 */
 	 deleteNode();
-
 	 cerr << " After cleaning, number vertices " << num_vertices(_graph) << " number edges "<< num_edges(_graph)<<endl;
 	 cerr << "delete mono " << deleteMono<<endl;
-//	 for (TSSRList::iterator it = _vertices->begin(); it != _vertices->end() ; ++it){
-//		 cout << "vertex after clean " << *(*it) << endl;
-//	 }
 }
 
 void NetEx::deleteNode(){
-	time_t before = time(NULL);
-//	cout << " enter in deleteNode " << endl;
-
-/*	for(TSSRList::iterator itVertex = _vertices->begin() ; itVertex != _vertices->end();){
-		cout << " for loop on "  << *(*itVertex) << endl;
-		if(find(deleteList.begin(), deleteList.end(),(*itVertex)->getID())!= deleteList.end() ){
-
-			itVertex = _vertices->erase(itVertex);
-			cout << " delete "<< _vertices->size()<< endl;
-		}
-		else
-			++itVertex;
-	}
-*/
-//	vertex_it vi, vi_end, next;
-//	tie(vi, vi_end) = vertices(_graph);
-
-	s32 numEdge = num_edges(_graph);
-//	for (next = vi; vi != vi_end; vi = next) {
-/*	someVector.erase(std::remove_if(someVector.begin(), someVector.end(),
-	                                [](decltype(*someVector.begin()) element){
-	                                    return !element.get()->update();
-	                                },
-	                 someVector.end());
-	*/
-	for(int vi = 0 ; vi < num_vertices(_graph); ){
-//	cout << vi << endl;
-	//	cout << " _graph[*vi].guid.deleteVertex "<< _graph[vi].guid.deleteVertex << endl;
-	//	++next;
-		time_t newBefore = time(NULL);
+	for(u32 vi = 0 ; vi < num_vertices(_graph); ){
 		if(_graph[vi].guid.deleteVertex == true){
-//			cout << "delete "<< vi << " size vertices "<<num_vertices(_graph)<<" " << _vertices->size()<< endl;
-		//
 			TSSRList::iterator it1;
-
 			it1 = _vertices->begin();
 			int nb =vi;
 			advance(it1,nb);
-	//		cout << "delete " << *(*it1) <<endl;
-
-
 			_vertices->erase (it1);
-		//	clear_vertex(vi,_graph);
 			clear_vertex(vi,_graph);
 			remove_vertex(vi, _graph);
-			time_t newAfter = time(NULL);
-	//		cout << "time delete in for " << difftime(newAfter,newBefore)<<endl;
 		}
 		else
 			++vi;
 	}
-	time_t after = time(NULL);
-	//if(PRINTTIME) cout << " time deleteNode CleanGraph " << difftime(after,before)<<endl;
+
+//	vertex_it b,e;
+ //   			    					    	for (boost::tie(b,e) = boost::vertices(_graph); b!=e; ++b){
+  //  			    					    		TSSRList::iterator it1 = _vertices->begin();
+   // 			    					    				advance(it1,*b);
+   // 			    					    		std::cout << "The vertex ID is: " <<  (*it1)->getID() << " id in graph " << *b<<endl;     			    					    	}
+
+
+    			    					//    	exit(1);
+}
+
+
+
+void NetEx::simplifyBigGraph(list<s32>comp,s32 threshold){
+	string seqname;
+	map<Edge,s32> weight;
+	map<int,int> degreeNode;
+	s32 nbEdges=0, nbVertices=0;
+	nbVertices = comp.size();
+	s32 getWeight;
+	for (list<s32>::iterator j = comp.begin(); j != comp.end(); j++){
+		int degreeBefore = degree(*j,_graph);
+		degreeNode.insert(make_pair(*j,degreeBefore));
+	}
+
+		for (list<s32>::iterator j = comp.begin(); j != comp.end(); j++){
+			nbEdges += out_degree(*j,_graph);
+			for (pair<out_edge_it, out_edge_it> pEdges = out_edges(*j, _graph); pEdges.first != pEdges.second; ++pEdges.first){
+				getWeight =  get(edge_weight_t(), _graph,*pEdges.first);
+				if(getWeight < threshold )//TODO 2 in argument to increase it in case of big graph
+					remove_edge(*pEdges.first, _graph);
+			}
+		}
+		for (list<s32>::iterator j = comp.begin(); j != comp.end(); j++){
+	//		TSSRList::iterator it1;
+	//		it1 = _vertices->begin();
+	//		int nb =*j;
+	//		advance(it1,nb);
+			int newDegree =  degree(*j,_graph);
+			int degreeBefore = degreeNode.find(*j)->second;
+
+			if(degreeBefore !=0 && newDegree ==0)
+				_graph[*j].guid.deleteVertex = true;
+		}
+		deleteNode();
+
+
 }

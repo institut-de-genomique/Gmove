@@ -20,6 +20,7 @@
 #include "NetEx.h"
 #include "GeneModel.h"
 #include "ReadFile.h"
+#include "GeneModelList.h"
 
 
 using namespace std;
@@ -32,22 +33,24 @@ map<string, s32> loadProtPhase(char *filename);
 map<string, string> loadFasta(char* filename);
 list<pair <GffRecord, string > > loadGff(char* filename,bool b,map<string, map<s32,s32> >& cds,map<string,string>);
 void  loadAnnotation(char* filename, list< pair< GffRecord,string > >& , map<string, map<s32,s32> >& cds,map<string,string>);
-void fusionMonoExons(list< pair < GffRecord,string> >& tagRecord);
+void fusionMonoExons(list<GffRecord> listMono,list< pair < GffRecord,string> >& tagRecord);
 list< pair < GffRecord,string> > extractMono(list< pair < GffRecord,string> >& tagRecord);
 bool sortRecordGff (const pair <GffRecord,string > & record1 , const pair <GffRecord,string> & record2);
-bool sortMonoGff (const pair <GffRecord,string > & record1 , const pair <GffRecord,string> & record2);
+bool sortMonoGff (const GffRecord & record1 , const GffRecord & record2);
 bool existence(char* name);
-void deleteIncludeMono(list< pair < GffRecord,string > >& listMono, list< pair < GffRecord,string> > tagRecord);
+void deleteIncludeMono(list< GffRecord >& listMono, list< pair < GffRecord,string> > tagRecord);
 void cdsPhase(s32& phase, list<pair<s32,s32> > pos, s32 strand, string name, map<string,map<s32,s32> >& cds);
 map<string,s32>  selectPhase(map<string,map<s32,s32> > cds);
+
+
 
 int main(int argc, char** argv) {
   
   // default values of parameters
-  s32 c, reduce_exon_list=100000, extend_for_splicesites=0, min_size_exon=25, min_size_intron=9, max_size_intron=50000, max_nb_paths=10000, search_window=30, nb_neighbour=20, verbose=1;
-  char *fastaFilename = NULL, *contigsFilename = NULL, *junctionsFilename = NULL, *annotationFilename = NULL, *out_genemodelsFilename = NULL, *out_contigsFilename = NULL, *out_junctionsFilename = NULL, *protPhaseFilename = NULL, *dataFilename = NULL, *dataProtFilename = NULL;
-  string out = "";
-  bool formatDef=true, keep_single_exon_gene=true, unoriented_junctions=false;
+  s32 c, reduce_exon_list=100000, extend_for_splicesites=0, min_size_exon=9, min_size_intron=9, max_size_intron=50000, max_nb_paths=10000, search_window=30, nb_neighbour=20, verbose=1, min_size_cds=100;
+  char *fastaFilename = NULL, *annotationFilename = NULL, *protPhaseFilename = NULL, *dataFilename = NULL, *dataProtFilename = NULL;
+  string out = "",outRaw,outFilter;
+  bool formatDef=true, keep_single_exon_gene=true, unoriented_junctions=false, rawData = false, ratioMono = false;
   s32 word_size = 25;
 
   // options given as parameters
@@ -57,20 +60,20 @@ int main(int argc, char** argv) {
 	  {"prot",   required_argument,        0, 'd'},
 	  {"annot",   required_argument,        0, 'a'},
 	  {"out",   required_argument,        0, 'o'},
+	  {"raw",no_argument ,0,'z'},
+	  {"cds", required_argument, 0 ,'c'},
+	  {"ratio",no_argument,0,'w'},
        {0,0,0,0},
     };
   int index;
 
-  while ((c =  getopt_long(argc, argv, "f:c:j:a:r:d:o:C:J:SL:x:e:i:m:p:P:b:n:l:t:u:v:h",longopts,&index)) != -1) {//getopt(argc, argv, "f:c:j:a:D:d:G:C:J:SL:x:e:i:m:p:P:b:n:l:t:u:v:h")) != -1) {
+  while ((c =  getopt_long(argc, argv, "f:c:a:r:d:o:SL:x:e:i:m:p:P:b:l:t:u:v:z:w:h",longopts,&index)) != -1) {//getopt(argc, argv, "f:c:j:a:D:d:G:C:J:SL:x:e:i:m:p:P:b:n:l:t:u:v:h")) != -1) {
     switch (c) {
     case 'f':
       fastaFilename = optarg; 
       break;
     case 'c': 
-      contigsFilename = optarg; 
-      break;
-    case 'j': 
-      junctionsFilename = optarg; 
+      min_size_cds = atoi(optarg);
       break;
     case 'a':
       annotationFilename = optarg;
@@ -83,13 +86,6 @@ int main(int argc, char** argv) {
     	break;
     case 'o':
     	out = optarg;
-     // out_genemodelsFilename = optarg;
-      break;
-    case 'C' :
-      out_contigsFilename = optarg;
-      break;
-    case 'J': 
-      out_junctionsFilename = optarg; 
       break;
     case 'P':
       protPhaseFilename = optarg;
@@ -118,9 +114,6 @@ int main(int argc, char** argv) {
     case 'b':
       search_window = atoi(optarg);
       break;
-    case 'n': 
-      nb_neighbour = atoi(optarg); 
-      break;
     case 't':
       formatDef=false;
       break;
@@ -128,8 +121,14 @@ int main(int argc, char** argv) {
       unoriented_junctions = true;
       break;
     case 'v': 
-      verbose = 0; // TODO verbose =1
+      verbose = 1;
       break;
+    case 'z':
+       	rawData = true;
+       	break;
+    case 'w':
+    	ratioMono = true;
+    	break;
     case 'h': 
       usage();
     }
@@ -148,78 +147,19 @@ int main(int argc, char** argv) {
   GeneModel::UNORIENTED = unoriented_junctions;
 
   // Check input and output options
-  if(contigsFilename != NULL && !existence(contigsFilename)) error("Input contigs file : empty filename or file not found.");
-  if(junctionsFilename != NULL && !existence(junctionsFilename)) error("Input junctions file : empty filename or file not found.");
   if(fastaFilename == NULL || !existence(fastaFilename)) error("Input genomic sequence : empty filename or file not found.");
   if(dataFilename != NULL && !existence(dataFilename)) error("Input rna file (gff) : empty file or file not found.");
   if(dataProtFilename != NULL && !existence(dataProtFilename)) error("Input prot file (gff) : empty file or file not found.");
   if(annotationFilename != NULL && !existence(annotationFilename)) error("Input annotation file (gff) : empty file or file not found.");
- // if(out_genemodelsFilename == NULL) error("Need to provide an output file for gene models.");
-  
-  if(out_junctionsFilename != NULL && junctionsFilename == out_junctionsFilename) error("Need to provide two distinct files for input and output of junctions.");
-  if(out_contigsFilename != NULL && contigsFilename == out_contigsFilename) error("Need to provide two distinct files for input and output of covtigs.");
   if(protPhaseFilename != NULL && !existence(protPhaseFilename)) error("Input proteic phase file : file not found");
-
-  //prepare output :
-
-  //  if(out_junctionsFilename!=NULL){
-  ofstream ofs_junctionsFilename;
-  ofs_junctionsFilename.open(out_junctionsFilename);
-  //}
-  //if(out_contigsFilename !=NULL){
-  ofstream ofs_contigsFilename;
-  ofs_contigsFilename.open(out_contigsFilename);
-  //}
 
   // create network
   list<NetEx*> listReseau;
   if(verbose) cerr << "Load fasta file " << fastaFilename << "..." << endl;
   map<string, string> fastaDB = loadFasta(fastaFilename);
 
-
   // create output files
-  	if(out.empty()){
-  		cout << "No directory, need to create one "<<endl;
-  		 system("mkdir -p out");
-  		 out = "out/";
-
-  	}
-  	else if (*(out.rbegin())!= '/'){
-  		char cmd[1000];
-  		strcat(cmd,"mkdir -p ");
-  		strcat(cmd,out.c_str());
-  		 system(cmd);
-  		out +="/";
-  	}
-  	else{
-  		char cmd[1000];
-  		strcat(cmd, "mkdir -p ");
-  		  		strcat(cmd,out.c_str());
-  		  		 system(cmd);
-  	}
-
-    ofstream ofs_genemodelsFilename;
-    out +=  "gmove_";
-    string s;
-    std::srand(std::time(0)); // use current time as seed for random generator
-    out += "tmpfileXXXXXX";
-    char *tmpname = strdup(out.c_str());
-    mkstemp(tmpname);
-    cout << "File name of the output "<< tmpname << endl;
-    ofs_genemodelsFilename.open(tmpname, std::ofstream::out);
-    //  ofs_genemodelsFilename.open((char*)(fastaDB.begin()->first).c_str(), std::ofstream::out);
- // if(formatDef==true) ofs_genemodelsFilename << "##gff-version 3" << endl;
-  //prepare gff files
- // char cmd[1000];
- // strcat(cmd,"sort -k1,1 -k10,10 -k4,4n ");
- // strcat(cmd,dataFilename);
-  char * tmpDataFilename = dataFilename;//"tmpSortData.gff";
- // strcat(cmd," > tmpSortData.gff");
- // strcat(cmd,tmpDataFilename);
- // system(cmd);
- // if(system(cmd) != 0 )
-//	  cerr << " error cannot sort and create a temporary file "<< endl;
-  //Load Rna seq Data
+  	  //Load Rna seq Data
   time_t before = time(NULL);
   bool proteinBool = false;
   map<string,map<s32,s32> > cds;
@@ -227,24 +167,23 @@ int main(int argc, char** argv) {
   if(existence(dataFilename)){
 	  if(verbose) cerr << "Load data file (gff) " << dataFilename << "..."<<endl;
 	  listRecord = loadGff(dataFilename,proteinBool,cds,fastaDB);
+	  //TODO sort data in Gmove
 	  cerr << "load rnaSeq " << listRecord.size() << endl;
   }
-  else{
+  else
 	  cerr<<"No rna file" << endl;
-  }
+
   if(existence(dataProtFilename)){
 	  //Load protein data
 	  if(verbose) cerr << "Load protein (gff) "<< dataProtFilename<<"..."<<endl;
-	  char * tmpDataFilename = dataProtFilename;//"tmpSortData.gff";
 	  proteinBool = true;
 	  list<pair < GffRecord, string > > listRecord2 = loadGff(dataProtFilename,proteinBool,cds,fastaDB);
 	  cerr << " load protein "<< listRecord2.size() << endl;
 	  listRecord.insert(listRecord.end(),listRecord2.begin(),listRecord2.end());
 	  listRecord2.clear();
   }
-  else{
-	  cerr << "No protein file " << endl;
-  }
+  else
+	  cerr << "No protein file" << endl;
 
   time_t after = time(NULL);
  if(PRINTTIME) cout <<"time loadGff " << difftime(after,before) << endl;
@@ -255,43 +194,116 @@ int main(int argc, char** argv) {
 		after = time(NULL);
 		if(PRINTTIME) cout << "time load Annotation " << difftime(after,before) << endl;
   }
-  else{
+  else
 	  cerr<<"No annotation file"<<endl;
-  }
+
   map<string, s32 > proteinPhaseCoord = selectPhase(cds);
   before = time(NULL);
+  ofstream ofs_rawModelsFilename, ofs_filterModelsFilename;
   if(listRecord.empty()){
-	  cerr<<"Error : no data load"<<endl;
+	  cerr<<"Warning : no data load "<<endl;
+	  exit(0);
   }
-  fusionMonoExons(listRecord);
+  else{//Create ouput
+	  //output raw data
+	  if(out.empty()){
+		cout << "No directory, need to create one "<<endl;
+		system("mkdir -p out");
+		out = "out/";
+		system("mkdir -p out/filter");
+	  }
+	else {
+		string cmd = "mkdir -p ";
+		cmd += out;
+		system(cmd.c_str());
+		out +="/";
+
+		string cmdFilter = "mkdir -p ";
+		cmdFilter += out;
+		cmdFilter += "filter";
+		system(cmdFilter.c_str());
+	}
+	if(rawData){
+		if(out.empty())
+			system("mkdir -p out/raw");
+
+		else{
+			string cmdRaw;
+			cmdRaw += "mkdir -p ";
+			cmdRaw += out;
+			cmdRaw +="raw";
+			system(cmdRaw.c_str());
+		}
+		outRaw=out;
+		outRaw += "raw/gmove_";
+		string randName = fastaDB.begin()->first;
+		outRaw += randName;
+		char *tmpnameRaw = strdup(outRaw.c_str());
+		mkstemp(tmpnameRaw);
+		ofs_rawModelsFilename.open(tmpnameRaw, std::ofstream::out);
+	}
+
+	outFilter =out;
+	cout << " out filter "<<outFilter<< endl;
+	outFilter += "filter/gmove_";
+	out +=  "gmove_";
+	std::srand(std::time(0)); // use current time as seed for random generator
+	out += "tmpfileXXXXXX";
+	string randName = "tmpfileXXXXXX";
+	outFilter += randName;
+	char *tmpnameFilter = strdup(outFilter.c_str());
+	mkstemp(tmpnameFilter);
+
+	ofs_filterModelsFilename.open(tmpnameFilter, std::ofstream::out);
+  }
+//sortRecordGff
+  //TODO loop on map scaff
+  list< pair < GffRecord,string > > listMono = extractMono(listRecord);//TODO extract mono and put them in a map by scaff !
+  map<string,list<GffRecord> > mapMono;
+  for( list<pair < GffRecord, string > >::iterator itList = listMono.begin() ; itList != listMono.end(); ++itList){
+	  map<string,list<GffRecord> >::iterator itMapMono;
+	  string scaff;
+	  assign(scaff,itList->first.ref);
+	  itMapMono = mapMono.find(scaff);
+	  if(itMapMono == mapMono.end()){
+
+		  list<GffRecord> tmpList;
+		  tmpList.push_back(itList->first);
+		  pair< string,list<GffRecord> > tmpPair;
+		  tmpPair = make_pair(scaff,tmpList);
+		  mapMono.insert(tmpPair);
+	  }
+	  else
+		  itMapMono->second.push_back(itList->first);
+  }
+
+  for(map<string,list<GffRecord> >::iterator itMap = mapMono.begin(); itMap != mapMono.end();++itMap){
+	  fusionMonoExons(itMap->second,listRecord);
+  }
   after = time(NULL);
   if(PRINTTIME) cout <<"time fusionMonoExons " << difftime(after,before) << endl;
   SSRContigLists liste(listRecord, fastaDB);
-
-  if(protPhaseFilename != NULL) {
-    if(verbose) cerr << "Load input protein mapping phase information from " << protPhaseFilename << " ..." << endl;
-    map<string, s32 > proteinPhase = loadProtPhase(protPhaseFilename);
-    proteinPhaseCoord.insert(proteinPhase.begin(),proteinPhase.end());
-  }
-
   DnaDictionary dict(word_size); // TODO doit pouvoir etre enleve --> changer fonctions correspondantes
-   // to test junctions between the covtigs
   before = time(NULL);
-  listReseau = liste.testJunctions(dict, ofs_junctionsFilename);
+  listReseau = liste.testJunctions(dict);
   after = time(NULL);
   if(PRINTTIME) cout << " time test junction " << difftime(after,before)<<endl;
 
   // create a directory for every .dot file
   system("mkdir -p dot_files");
-  
   list<NetEx*>::iterator itNet;
    s32 cb=0;
   // test for cycles in the graph (not too sure if we keep that)
   for (itNet = listReseau.begin() ; itNet != listReseau.end() ; itNet++) {
 	cout << " change network " << listReseau.size() << endl;
     NetEx* oneRes = *itNet;
+    s32 num = std::distance(listReseau.begin(), itNet);
+    ++num;
+    cout << " Reseaux name " << oneRes->getSeqName()<< " iterator "<< num << endl;
     before = time(NULL);
     oneRes->cleanGraph();
+
+    oneRes->graphOut("afterClean");
     after = time(NULL);
     if(PRINTTIME) cout << " time cleaning graph " << difftime(after,before) << endl;
 
@@ -307,96 +319,156 @@ int main(int argc, char** argv) {
     }
     vector<list<s32> > components = oneRes->getComponents();
     list<list<s32> > allpaths;
-    s32 nb_models=0, nb_used_cc=0;
+    s32 nb_models=0, nb_used_cc=0, nb_models_filter =0;
     u32 cutoff_nbExons=1;
     if(keep_single_exon_gene) cutoff_nbExons=0;
-    for (u32 c = 0; c < components.size(); c++) { //TODO ne pas faire de boucle mais découper les clusters
+    GeneModelList allModelFromOneRes;
+    for (u32 c = 0; c < components.size(); c++) {
     	time_t before_cc = time(NULL);
     	cout << " change cc "<< c<< endl;
-
       list<s32> component =  components[c];
       if (component.size() > cutoff_nbExons){ //1 -> nb membre de la composante /! 1 after cleaned
     	  cb++;
     	  s32 nbedges=0, nbvertices=0;
     	  oneRes->countVerticesAndEgdes(component, nbvertices, nbedges);
+
     	  if(nbedges > 10 * nbvertices) {
     		  if(verbose) cerr << "[Warning] found one connected component with number of edges greater than 10 times the number of vertices (nbvertices= "
 			   << nbvertices << " nbedges= " << nbedges << ")" << endl;
     		  continue;
     	  }
 		  s32 nbPaths = oneRes->count_allPaths(component);
-		  cout << " nbPaths " << nbPaths << endl;
+		  cerr << " nbPaths " << nbPaths <<" size component "<< component.size()<< endl;
 		  // calculate coordinates of too furnished region
-		  if(nbPaths > max_nb_paths || nbPaths == -1) {
+		  s32 threshold =2;
+		  while(nbPaths > max_nb_paths || nbPaths == -1) {
+
 			  if(verbose) {
-				  s32 begReg = 0, endReg = 0;
-				  for(TSSRList::iterator itTag = oneRes->getVertices()->begin(); itTag != oneRes->getVertices()->end(); itTag++){ //XXX we always need double loop? To look at all vertices and just get the one that correspond to my component ?
-					  SSRContig* ctgTag = *itTag;
-					  for(list<s32>::const_iterator itComp = component.begin(); itComp != component.end(); itComp++){
-						  s32 iD = *itComp;
-						  if(ctgTag->getID() == iD) {
-							  if (begReg == 0) begReg = ctgTag->start();
-							  if (ctgTag->end() > endReg) endReg = ctgTag->end();
-							  break;
-						  }
-					  }
+				  s32 begReg = -1, endReg = 0;
+				  for(list<s32>::const_iterator itComp = component.begin(); itComp != component.end(); itComp++){
+					  TSSRList::iterator it1 = oneRes->getVertices()->begin();
+					  advance(it1,*itComp);
+					  SSRContig* ctgTag = *it1;
+					  if (begReg == -1 || begReg > ctgTag->start() ) begReg = ctgTag->start();
+					  	  if (ctgTag->end() > endReg) endReg = ctgTag->end();
 				  }
-				  cerr << "[Warning] Too many paths ( " << nbPaths << " ) : " << oneRes->getSeqName() << "\t" << begReg << "\t" << endReg << endl;
-				  continue;
+
+				  cerr <<"threshold "<< threshold <<" [Warning] Too many paths ( " << nbPaths << " ) : " << oneRes->getSeqName() << "\t" << begReg << "\t" << endReg << endl;
+
+				  oneRes->simplifyBigGraph(component,threshold); //simplify big graph
+				  components = oneRes->getComponents();
+				  component = components[c];//replace former component with the new simplify one
+				  nbPaths = oneRes->count_allPaths(component);
+
+			  ++threshold;
 			  }
 		  }
-		  if(nbPaths < 1) continue;
+
+
+		  TSSRList* tmpVertex;
+		  tmpVertex = oneRes->getVertices();
+		  cout << "out of while new nbPath " << nbPaths<< endl;
 		  before = time(NULL);
 
-		  allpaths = oneRes->allPathsFinder(component);
+		  allpaths= oneRes->PathsFinderWithCondition(component);
+	//	  allpaths = oneRes->allPathsFinder(component);
 		  after = time(NULL);
 		  if(PRINTTIME) cout << " time allPathFinder " << difftime(after,before)<< " number of paths " << allpaths.size() << endl;
 		  nb_used_cc++;
 		  s32 nbPath=1;
 		  // find a model for each path in the connected component
 		  before = time(NULL);
-		  map<string,GeneModel> mapGeneModel;
+		  MapModel mapGeneModel;
+		  cout << "\n\n";
 		  for(list<list<s32> >::iterator itPa = allpaths.begin(); itPa != allpaths.end(); itPa++) {
-
-			  GeneModel gene = GeneModel(*itPa, oneRes->getVertices(), oneRes->getSeqName(), cb, search_window, probExons);//TODO save all gene from one cc
-			  time_t before2 = time(NULL);
+	//		  for(list<s32>::iterator itPaa = itPa->begin(); itPaa != itPa->end(); itPaa++) {
+	//			  cout << *itPaa << " " ;
+	//		  }
+	//		  cout << endl;
+			  GeneModel gene = GeneModel(*itPa, oneRes->getVertices(), oneRes->getSeqName(), c+1, search_window, probExons);//TODO save all gene from one cc
 			  std::clock_t c_start = std::clock();
 			  bool contain_orf = gene.findORF(proteinPhaseCoord);
 			  std::clock_t c_end = std::clock();
-			  time_t after2 = time(NULL);
-			  if(PRINTTIME)  cout << " time findORF " <<  1000.0 * (c_end-c_start) / CLOCKS_PER_SEC << endl;
+			 if(PRINTTIME)
+				  cout << " time findORF " <<  1000.0 * (c_end-c_start) / CLOCKS_PER_SEC << endl;
 			  // On imprime une seule CDS par transcrit
-			  if(contain_orf != gene.containCDS()){
+			  if(contain_orf != gene.containCDS())
 				  cerr << "Error contain_orf " << contain_orf << " gene.containCDS() " << gene.containCDS()<< (*gene.getExons().begin())->start()<< " end exon " << (*gene.getExons().end())->end()<<endl;
-			  }
 			  if(gene.containCDS()) {
-				  ostringstream oss;
-				  oss << gene.getSeqname()<< "@" << gene.getCDS().first << "@" ;
-				  string key = oss.str();
 				  gene.keepModel(mapGeneModel);
 			  }
 		  }
 		  before = time(NULL);
-		  for(map<string,GeneModel >::iterator itMap = mapGeneModel.begin(); itMap != mapGeneModel.end() ; ++itMap){
-			  itMap->second.printAnnot(ofs_genemodelsFilename, nbPath, formatDef);
+		  vector<GeneModel> vectorOfGene;
+		  nbPath=1;
+		  for(MapModel::iterator itMap = mapGeneModel.begin(); itMap != mapGeneModel.end(); ++itMap){
+			  itMap->second.setID(nbPath);
+			  itMap->second.printAnnot(ofs_rawModelsFilename, formatDef);
 			  nbPath++;
 			  nb_models++;
+
 		  }
-		//  selectModel(listOfGene); //TODO do not create include model
-		  after = time(NULL);
+		  std::clock_t beforeClean = std::clock();
+		  GeneModelList listOfGene(mapGeneModel);//FIXME another way to convert map to list ? splice ??
+		  std::clock_t afterClean = std::clock();
+
+		  beforeClean = time(NULL);
+		  listOfGene.deleteIncludedModel();
+		  afterClean = time(NULL);
+	if(PRINTTIME)	  cout << " time deleteIncludedModel " << 1000.0 * (afterClean-beforeClean) / CLOCKS_PER_SEC  << endl;
+
+
+	  beforeClean = time(NULL);
+	  	  if(listOfGene.getSize() > 1)
+			  listOfGene.longestCDS();
+		  afterClean = time(NULL);
+	if(PRINTTIME)	  cout << " time deleteSmallCDS and print annot " << 1000.0 * (afterClean-beforeClean) / CLOCKS_PER_SEC << endl;
+		  allModelFromOneRes.insertModels(listOfGene); //FIXME What is it for ? copy de list, pb ! mapGeneModel -> listOfGene -> allModelFromOneRes Pourquoi listOfGene existe ?
      }
       after = time(NULL);
       if(PRINTTIME) cout << " time to loop on cc " << difftime(after,before_cc) << endl;
     }
+    cout << "allModelfromOneRes " << allModelFromOneRes.getSize() << endl;
+
+
+    before= time(NULL);
+    allModelFromOneRes.includedMono();
+    after = time(NULL);
+    cout << " time includedMono " << 1000.0 * (after-before) / CLOCKS_PER_SEC << endl;
+
+    before= time(NULL);
+    allModelFromOneRes.deleteSmallCDS(min_size_cds);
+    after = time(NULL);
+  if(PRINTTIME)  cout << " time deleteSmallCds " << 1000.0 * (after-before) / CLOCKS_PER_SEC << endl;
+
+    before= time(NULL);
+    allModelFromOneRes.clusterLocation();
+    after = time(NULL);
+  if(PRINTTIME)  cout << " time ClusterLocation " << 1000.0 * (after-before) / CLOCKS_PER_SEC << endl;
+
+
+    if(ratioMono)
+    	allModelFromOneRes.ratioCdsUtr();
+
+    GeneModelL tmpModels = allModelFromOneRes.getModels() ; //FIXME do not create a copy !
+    for(GeneModelL::iterator itList = tmpModels.begin(); itList != tmpModels.end() ; ++itList){//FIXME print directly in GeneModelL !
+		if(!itList->getToDelete()){
+			itList->printAnnot(ofs_filterModelsFilename, formatDef);
+			++nb_models_filter;
+		}
+  	  }
+
     if(verbose) {
       list<pair<s32,s32> > mypbCC;
       cerr <<"Number of usable connected component(s): " << nb_used_cc << endl;
       cerr <<"Number of gene model(s): " << nb_models << endl;
+      cerr << "Number of gene model(s) after filtering : " << nb_models_filter << endl;
       for(map<string, list<s32> >::iterator itPE = probExons.begin();itPE != probExons.end(); itPE++){
     	  itPE->second.sort();
     	  itPE->second.unique();
     	  string tmp_cc_nb;
-    	  if(itPE->second.front() != itPE->second.back())	mypbCC.push_back( make_pair(itPE->second.front(),itPE->second.back()) );
+    	  if(itPE->second.front() != itPE->second.back())
+    		  mypbCC.push_back( make_pair(itPE->second.front(),itPE->second.back()) );
       }
       mypbCC.sort();
       mypbCC.unique();
@@ -424,15 +496,12 @@ map<string, s32> loadProtPhase(char *filename){
     if(seqname.empty()) { break; }
     fstrm>>coord;
     fstrm>>phase;
-    
     ostringstream oss;
     oss << seqname << "@" << coord;
     string key = oss.str();
-
     map<string, s32>::iterator itSeq = protPhase.find(key);
-    if(itSeq == protPhase.end()){
+    if(itSeq == protPhase.end())
       protPhase.insert( make_pair(key,phase) );
-    }
   }
   fstrm.close();
   return protPhase;
@@ -444,15 +513,13 @@ map<string, string> loadFasta(char* filename) {
   string name, seqline;
   string sequence;
   map<string, string> fastaDB;// hash table [name]=sequence ( sequence in lower case atcg)
-  
   fstream fstrm;
   fstrm.open(filename, ios_base::in | ios_base::binary);
   while(!fstrm.eof()) {
     fstrm>>seqline;
-    
     if('>' == seqline[0]) {
       if(!name.empty()) { 
-    	  cout << "look at scaff " << name << endl;
+    	  cerr << "look at scaff " << name << endl;
     	  fastaDB.insert(make_pair(name,sequence));
     	  sequence.erase();
       }
@@ -465,16 +532,14 @@ map<string, string> loadFasta(char* filename) {
       seqline.erase();
     }
   }
-  if(!name.empty()) {
-	cout << "look at scaff " << name << endl;
-    fastaDB.insert(make_pair(name,sequence));
-  }
+  if(!name.empty())
+	  fastaDB.insert(make_pair(name,sequence));
   fstrm.close();
   return fastaDB;
 }
 
 list< pair< GffRecord,string > > loadGff(char* filename,bool protein,map<string, map<s32,s32> >& cds,map<string,string>fastaDB){
-	/* use it for reannotation
+	/*
 	We need to keep in mind where come from the exon, we cannot build all combinaison from this data
 	*/
 	GffFileIn gffIn(filename);
@@ -488,16 +553,17 @@ list< pair< GffRecord,string > > loadGff(char* filename,bool protein,map<string,
 	 string previous_exon_id,tag,previous_tag;
 	 while (!atEnd(gffIn)){
 		 readRecord(record, gffIn);
+
+		 string scaff;
+		 assign(scaff,record.ref);
+
 		 if(!tagRecord.empty() && tagRecord.back().first.tagValues[0] == ""){
 			 cerr << " error in LoadGff : name empty (last column) "<< endl;
 		 }
-
-		 string idFasta;
-		 assign(idFasta,record.ref);
-		 map<string,string>::iterator itFasta = fastaDB.find(idFasta);
+		 map<string,string>::iterator itFasta = fastaDB.find(scaff);
 		 if(itFasta==fastaDB.end())continue;
-		 else
- 		 if(record.type=="exon" || record.type=="HSP"){
+
+		 if(record.type=="exon" || record.type=="HSP"){
 			 if(!tagRecord.empty() && record.tagValues[0] == tagRecord.back().first.tagValues[0]){
 				 tag = 'i';
 				 if(protein){
@@ -523,21 +589,32 @@ list< pair< GffRecord,string > > loadGff(char* filename,bool protein,map<string,
 					 }
 				 }
 				 tag = 'd';
-				 if(!tagRecord.empty() && tagRecord.back().second == "d")
-						 tagRecord.back().second = 'm';
+				 if(!tagRecord.empty() && tagRecord.back().second == "d"){
+					 tagRecord.back().second = 'm';
+					 if(protein ){
+						 if(tagRecord.back().first.strand=='+')phase = 1;
+						 else phase = -1;
+						 string name;
+						 assign(name,tagRecord.back().first.ref);
+						 string tmp ;
+						 assign(tmp,tagRecord.back().first.tagValues[0]);
+						 cdsPhase(phase,posCds[tmp],tagRecord.back().first.strand,name,cds);
+					 }
+				 }
+
 				 else{
 					if(!tagRecord.empty()){
 						tagRecord.back().second = 'f';
 						 if(protein ){
 							 if( lengthCds%3 == 0 ){
-							 if(tagRecord.back().first.strand=='+')phase = 1;
-							 else phase = -1;
-							 string name;
-							 assign(name,tagRecord.back().first.ref);
-							 list<pair < s32,s32 > > pos;
-							 string tmp ;
-							 assign(tmp,tagRecord.back().first.tagValues[0]);
-							 cdsPhase(phase,posCds[tmp],tagRecord.back().first.strand,name,cds);
+								 if(tagRecord.back().first.strand=='+')phase = 1;
+								 else phase = -1;
+								 string name;
+								 assign(name,tagRecord.back().first.ref);
+								 list<pair < s32,s32 > > pos;
+								 string tmp ;
+								 assign(tmp,tagRecord.back().first.tagValues[0]);
+								 cdsPhase(phase,posCds[tmp],tagRecord.back().first.strand,name,cds);
 							 }
 						 }
 					}
@@ -549,7 +626,6 @@ list< pair< GffRecord,string > > loadGff(char* filename,bool protein,map<string,
 					assign(tmp,record.tagValues[0]);
 					posCds[tmp].push_back(pairPos);
 				}
-
 		 }
 		pair<GffRecord, string> tmpPair = make_pair(record,tag);
 		tagRecord.push_back(tmpPair);
@@ -558,7 +634,7 @@ list< pair< GffRecord,string > > loadGff(char* filename,bool protein,map<string,
 	 }
 	 //update the last one
 	 if(tagRecord.empty()){
-		 cerr << " Error : we did not charge any data from "<< filename << endl;
+		 cerr << " Warning : we did not charge any data from "<< filename << endl;
 	 }
 	 else{
 		 if(tagRecord.back().second =="i")
@@ -583,12 +659,11 @@ void loadAnnotation(char* filename, list< pair< GffRecord,string > >& tagRecord,
 	 // Copy the file record by record.
 	 GffRecord record;
 	 string previous_exon_id,tag,previous_tag;
-	 int nbExon = 0;
 	 while (!atEnd(gffIn)){
 		readRecord(record, gffIn);
-		string idFasta;
-		assign(idFasta,record.ref);
-		map<string,string>::iterator itFasta = fastaDB.find(idFasta);
+		string scaff;
+		assign(scaff,record.ref);
+		map<string,string>::iterator itFasta = fastaDB.find(scaff);
 		if(itFasta==fastaDB.end())continue;
 		if(record.type!="CDS" && record.type!="exon" && record.type!="UTR"){ continue;}
 		if(!tagRecord.empty() && record.tagValues[0] == tagRecord.back().first.tagValues[0]){
@@ -639,7 +714,7 @@ void loadAnnotation(char* filename, list< pair< GffRecord,string > >& tagRecord,
 							assign(tmp,tagRecord.back().first.tagValues[0]);
 							cdsPhase(phase, posCds[tmp],  tagRecord.back().first.strand, name, cds);
 						}
-					}
+				}
 			}
 			lengthCds = 0;
 			if(record.type == "CDS"){
@@ -655,63 +730,67 @@ void loadAnnotation(char* filename, list< pair< GffRecord,string > >& tagRecord,
 		clear(record);
 	}
 	 //update the last one
+	 if(tagRecord.empty()){
+			 cerr << " Warning : we did not charge any data from "<< filename << endl;
+		 }
+		 else{
 	 if(tagRecord.back().second =="i") tagRecord.back().second ='f';
 	 else tagRecord.back().second ='m';
+		 }
 	 close(gffIn);
+
 }
 
 void cdsPhase(s32& phase, list< pair< s32,s32> > pos, s32 strand, string name, map<string,map<s32,s32> >& cds){
 	if(strand=='+'){
-	for(list<pair <s32,s32 > >::iterator itPos = pos.begin(); itPos != pos.end(); ++itPos){
-		s32 start = (*itPos).first;
+		for(list<pair <s32,s32 > >::iterator itPos = pos.begin(); itPos != pos.end(); ++itPos){
+			s32 start = (*itPos).first;
 			s32 end = (*itPos).second;
-		 for(int i =start+1 ; i <= end ; ++i){
-			 ostringstream oss;
-			 oss << name << "@" << i;
-			 string key = oss.str();
+			for(int i =start+1 ; i <= end ; ++i){
+				 ostringstream oss;
+				 oss << name << "@" << i;
+				 string key = oss.str();
 
-			 if( cds.find(key) == cds.end()){
-				 cds[key].insert(make_pair(phase,1));
-			 }
-			 else{
-				 map<s32,s32>::iterator itCds = cds[key].find(phase);
-				 if( itCds != cds[key].end()){
-					 itCds->second =  itCds->second + 1;
-				 }
+				 if( cds.find(key) == cds.end())
+					 cds[key].insert(make_pair(phase,1));
+
 				 else{
-					cds[key].insert(make_pair(phase,1));
+					 map<s32,s32>::iterator itCds = cds[key].find(phase);
+					 if( itCds != cds[key].end())
+						 itCds->second =  itCds->second + 1;
+
+					 else
+						 cds[key].insert(make_pair(phase,1));
 				 }
+				 ++phase;
+				 if(phase > 3) phase = 1 ;
 			 }
-			 ++phase;
-			 if(phase > 3) phase = 1 ;
-		 }
-	}
+		}
 	}
 	else{
-	for(list<pair <s32,s32 > >::reverse_iterator itPos = pos.rbegin(); itPos != pos.rend(); ++itPos){
-			s32 start = (*itPos).first;
+		for(list<pair <s32,s32 > >::reverse_iterator itPos = pos.rbegin(); itPos != pos.rend(); ++itPos){
+				s32 start = (*itPos).first;
 				s32 end = (*itPos).second;
 
-		for(int i = end ; i > start ; --i){
-			 ostringstream oss;
-			 oss << name << "@" << i;
-			 string key = oss.str();
-			 if( cds.find(key) == cds.end()){
-				 cds[key].insert(make_pair(phase,1));
-			 }
-			 else{
-				 map<s32,s32>::iterator itCds = cds[key].find(phase);
-				 if( itCds != cds[key].end()){
-					 itCds->second =  itCds->second + 1;
-				 }
+			for(int i = end ; i > start ; --i){
+				 ostringstream oss;
+				 oss << name << "@" << i;
+				 string key = oss.str();
+				 if( cds.find(key) == cds.end())
+					 cds[key].insert(make_pair(phase,1));
+
 				 else{
-					cds[key].insert(make_pair(phase,1));
+					 map<s32,s32>::iterator itCds = cds[key].find(phase);
+					 if( itCds != cds[key].end())
+						 itCds->second =  itCds->second + 1;
+					 else
+						 cds[key].insert(make_pair(phase,1));
+
 				 }
+				--phase;
+				if(phase < -3) phase = -1 ;
 			 }
-			--phase;
-			if(phase < -3) phase = -1 ;
-		 }
-	}
+		}
 	}
 }
 
@@ -719,8 +798,6 @@ map<string,s32> selectPhase(map<string,map<s32,s32> > cds){
 	map<string,s32> phase;
 	for(map<string,map<s32,s32 > >::iterator itCds  = cds.begin() ; itCds != cds.end() ; ++itCds){
 		s32 max = 0,secondMax = 0 ,maxPhase = 0 ;
-		if(itCds->second.size() > 1) {
-		}
 		for(map<s32,s32>::iterator itPhase = itCds->second.begin() ; itPhase != itCds->second.end(); ++itPhase){
 			if(itPhase->second >= max){
 				secondMax = max;
@@ -728,9 +805,8 @@ map<string,s32> selectPhase(map<string,map<s32,s32> > cds){
 				maxPhase = itPhase->first;
 			}
 		}
-		if(max == secondMax ){
+		if(max == secondMax )
 			phase[itCds->first] = 0;
-		}
 
 		else
 			phase.insert(make_pair(itCds->first,maxPhase));
@@ -742,37 +818,27 @@ map<string,s32> selectPhase(map<string,map<s32,s32> > cds){
 list< pair < GffRecord,string> > extractMono(list< pair < GffRecord,string> >& tagRecord){
 	list< pair < GffRecord,string> > listMono;
 	for (list< pair < GffRecord,string> >::iterator it=tagRecord.begin() ;it != tagRecord.end();){
-			if(it->second == "m"){
-				listMono.push_back(*it);
-				it = tagRecord.erase(it);
-			}
-		else
-				++it;
+		if(it->second == "m"){
+			listMono.push_back(*it);
+			it = tagRecord.erase(it);
 		}
+		else
+			++it;
+	}
 	return listMono;
 }
 
-void fusionMonoExons(list< pair < GffRecord,string> >& tagRecord){
+void fusionMonoExons(list<GffRecord> listMono,list< pair < GffRecord,string> >& tagRecord){//TODO move that to GeneModel !
 	//Same idea as /env/ig/soft/rdbioseq/annotation-snapshot/linux-noarch/bin/loci
-	time_t before,after;
-	before = time(NULL);
-	list< pair < GffRecord,string > > listMono = extractMono(tagRecord);
-
-	after = time(NULL);
-	before = time(NULL);
 	listMono.sort(sortMonoGff);
-	after = time(NULL);
-	time_t beforeAll = time(NULL);
-	std::clock_t c_start = std::clock();
-	for(list<pair < GffRecord,string> >::iterator itListMono = listMono.begin(); itListMono != --listMono.end() ;){//--listMono.end() : we stop one element before the end, like size()-1
-		list<pair < GffRecord,string> >::iterator itNext = itListMono;
+	for(list< GffRecord>::iterator itListMono = listMono.begin(); itListMono != --listMono.end() ;){//--listMono.end() : we stop one element before the end, like size()-1
+		list< GffRecord >::iterator itNext = itListMono;
 		++itNext;
-		if(itListMono->first.ref == itNext->first.ref && itListMono->first.strand == itNext->first.strand){
-			if( (itNext->first.endPos >= itListMono->first.beginPos && itNext->first.endPos <= itListMono->first.endPos)
-					|| (itListMono->first.endPos >= itNext->first.beginPos && itListMono->first.endPos <= itNext->first.endPos)){
-
-				itNext->first.beginPos = min(itListMono->first.beginPos,itNext->first.beginPos);
-				itNext->first.endPos = max(itListMono->first.endPos,itNext->first.endPos);
+		if(itListMono->ref == itNext->ref && itListMono->strand == itNext->strand){ //(itListMono->strand == itNext->strand || itListMono->strand=='.' || itNext->strand == '.')){//&& itListMono->strand == itNext->strand){ FIXME fusionne mono with . or + or - ??
+			if( (itNext->endPos >= itListMono->beginPos && itNext->endPos <= itListMono->endPos)
+			|| (itListMono->endPos >= itNext->beginPos && itListMono->endPos <= itNext->endPos)){
+				itNext->beginPos = min(itListMono->beginPos,itNext->beginPos);
+				itNext->endPos = max(itListMono->endPos,itNext->endPos);
 				itListMono = listMono.erase(itListMono);
 			}
 			else
@@ -781,23 +847,18 @@ void fusionMonoExons(list< pair < GffRecord,string> >& tagRecord){
 		else
 			++itListMono;
 	}
-	after = time(NULL);
-	std::clock_t c_end = std::clock();
-	before = time(NULL);
-	deleteIncludeMono(listMono,tagRecord);
-	after = time(NULL);
-	before = time(NULL);
-	tagRecord.insert(tagRecord.end(),listMono.begin(),listMono.end());
-	after = time(NULL);
+	for(list<GffRecord>::iterator itMono  = listMono.begin(); itMono != listMono.end(); ++itMono){
+		tagRecord.push_back(make_pair(*itMono,"m"));
+	}
 }
 
 
-void deleteIncludeMono(list< pair < GffRecord,string > >& listMono, list< pair < GffRecord,string> > tagRecord){
+void deleteIncludeMono(list<GffRecord>& listMono, list< pair < GffRecord,string> > tagRecord){
 	//TODO before add at tagRecord, look if mono is inside a pluriexon : delete mono
-	for(list< pair < GffRecord,string > >::iterator itMono = listMono.begin(); itMono != listMono.end();){
+	for(list< GffRecord>::iterator itMono = listMono.begin(); itMono != listMono.end();){
 		bool boolDelete =false;
 		for(list< pair < GffRecord,string > >::iterator itOther = tagRecord.begin(); itOther != tagRecord.end(); ++itOther){
-			if(itMono->first.beginPos >= itOther->first.beginPos && itMono->first.endPos <= itOther->first.endPos){
+			if(itMono->beginPos >= itOther->first.beginPos && itMono->endPos <= itOther->first.endPos && itMono->ref == itOther->first.ref && itMono->strand == itOther->first.strand){
 				boolDelete = true;
 				break;
 			}
@@ -812,8 +873,8 @@ bool sortRecordGff (const pair <GffRecord,string >& record1 , const pair <GffRec
 	return (record1.first.ref <= record2.first.ref &&  record1.first.beginPos <= record2.first.beginPos);
 }
 
-bool sortMonoGff (const pair <GffRecord,string >& record1 , const pair <GffRecord,string>& record2){
-	return (record1.first.beginPos <= record2.first.beginPos);
+bool sortMonoGff (const GffRecord& record1 , const GffRecord & record2){
+	return (record1.beginPos <= record2.beginPos);
 }
 // to send error message
 void error(string msg) {
@@ -843,35 +904,28 @@ void usage() {
 	cerr << "Usage : gmove -f <reference sequence> -c <covtigs> -j <junctions> -G <output gene models> {Options}" << endl;
 	cerr << "!! Note : Arguments with * are required, the other are optionnal !!" << endl << endl;
 	cerr << "  INPUT FILES" << endl;
-	cerr << "*    -f <file> : fasta file which contains genome sequence(s)." << endl << endl;
-	cerr << "     -c <file> : tabular file which contains covtigs [sequence_name start_position end_position average_coverage]." << endl;
-	cerr << "     -j <file> : tabular file which contains junctions [sequence_name end_position_of_exon1 start_position_of_exon2 strand]." << endl;
-	cerr << "                 strand is 1 for forward and -1 for reverse; only four first fields are taken into account." << endl;
-	cerr << "     -P <file> : tabular file which contains proteic alignment phase information [sequence_name base_coordinate phase]." << endl;
-	cerr << "     --annot <file> : annotation file in gff "<<endl;
-	cerr << "     --rna <file> : rna file in gff "<<endl;
-	cerr << "     --prot <file> : prot file in gff"<<endl;
+	cerr << "*    -f <file> 		: fasta file which contains genome sequence(s)." << endl << endl;
+	cerr << "     --annot <file> 	: annotation file in gff "<<endl;
+	cerr << "     --rna <file> 		: rna file in gff "<<endl;
+	cerr << "     --prot <file> 	: prot file in gff"<<endl;
+
 
 	cerr << "  OUTPUT FILES" << endl;
-	cerr << "     -o <folder> : output folder, by default (./out) " << endl;
-	cerr << "     -C <file> : output extended covtigs in the given file [sequence_name start_position end_position average_coverage]" << endl;
-	cerr << "     -J <file> : output validated junctions in the given file [sequence_name start_position end_position strand .... ]" << endl;
+	cerr << "     -o <folder> 	: output folder, by default (./out) " << endl;
+	cerr << "     --raw 		: output raw data " << endl;
 	cerr << endl;
-	cerr << "     -S        : do not output single exon models." << endl;
-	cerr << "     -L <int>  : reduce the exon list size to -L parameters for each covtigs, default is 100.000." << endl;
-	cerr << "     -x <int>  : size of regions where to find splice site around covtigs boundaries, default is 0." << endl;
-	cerr << "                 if != 0, adds complexity to graph structure and to execution time." << endl;
-	cerr << "                 only works with canonical splice sites."<< endl;
-	cerr << "     -e <int>  : minimal size of exons, default is 25 nucleotides." << endl;
-	cerr << "     -i <int>  : minimal size of introns, default is 9 nucleotides." << endl;
-	cerr << "     -m <int>  : maximal size of introns, default is 50.000 nucleotides." << endl;
-	cerr << "     -p <int>  : maximal number of paths inside a connected component, default is 10,000." << endl;
-	cerr << "     -b <int>  : number of nucleotides around exons boundaries where to find start and stop codons, default is 30." << endl;
-	cerr << "     -n <int>  : number of neighbour covtigs to test, default is 20." << endl;
-	cerr << "     -t        : gtf format annotation file - default is gff3" << endl;
-	cerr << "     -u        : choose model strand according to longest ORF - only works if input junctions are non-oriented" << endl;
-	cerr << "     -v        : silent mode" << endl;
-	cerr << "     -h        : this help" << endl;
+	cerr << "     -S       		: do not output single exon models." << endl;
+	cerr << "     -e <int>  	: minimal size of exons, default is 9 nucleotides." << endl;
+	cerr << "     -i <int>  	: minimal size of introns, default is 9 nucleotides." << endl;
+	cerr << "     -m <int>  	: maximal size of introns, default is 50.000 nucleotides." << endl;
+	cerr << "     -p <int>  	: maximal number of paths inside a connected component, default is 10,000." << endl;
+	cerr << "     -b <int>  	: number of nucleotides around exons boundaries where to find start and stop codons, default is 30." << endl;
+	cerr << "     -t        	: gtf format annotation file - default is gff3" << endl;
+	cerr << "     -u        	: choose model strand according to longest ORF - only works if input junctions are non-oriented" << endl;
+	cerr << "     --cds         : min size CDS, by default 100 " << endl;
+	cerr << "     -v        	: silent mode" << endl;
+	cerr << "     -h        	: this help" << endl;
+	cerr << " --ratio 			: ratio CDS/UTR min 80% de CDS" << endl;
 	cerr << "--------------------------------------------------------------------------------------------" << endl;
 	exit(1);
 }

@@ -84,87 +84,18 @@ int main(int argc, char** argv)
   ReadFile reads(readsFilename);
   nbSeq = reads.loadAndCount(dict);
 
-  // 
-  // If not enough memory !!!!
-  //  while( reads.next(sSeq) != 0 ) {
-  //    dict.countWords(sSeq);
-  //    nbSeq++;
-  //  }
-  //
     
   if (verbose) cerr << "  word dictionnary completed : nbseq= " << 
 		   nbSeq << " nbWords= " << dict.getNbWords() <<
 		   " nbDiffWords= " << dict.getNbDiffWords() << 
 		 " nbBadChars= " << dict.getNbBadChars() << "...\n";
 
-  // If you want to output the word dictionary !!
-  //cout << dict << endl;
-  //exit(0);
 
   map<string, string> toto = loadFasta(fastaFilename);
   SSRContigLists liste(contigsFilename, toto);
   liste.testJunctions(dict);
 
 
-  /// Defaut type of a graph
-  //typedef adjacency_list<vecS, vecS, directedS, property<vertex_name_t, unsigned int>,
-  //  property<edge_name_t, unsigned int>> Graph;
-
-  //Graph g;
-  
-  /// Vertex map type
-  //typedef property_map<Graph, vertex_name_t>::type VertexName;
-  //VertexName vertex_name = get(vertex_name, g);
-  /// Defaut type of a vertex in a graph
-  //typedef boost::graph_traits<Graph>::vertex_descriptor Vertex;
-
-  /// Edge map type
-  //typedef boost::property_map<Graph, boost::edge_weight_t>::type EdgeIndexMapT;
-  /// Defaut type of an edge in a graph
-  //typedef boost::graph_traits<Graph>::edge_descriptor Edge;
-  /// Edge iterator
-  //typedef boost::graph_traits<Graph>::edge_iterator EdgeIterator;
-
-  //Graph g;
-  //VertexIndexMapT index = get(boost::vertex_index, g);
-  //EdgeIndexMapT distances = get(boost::edge_weight, g);
-  //unsigned int nbPoints = 10;
-
-  //for(unsigned int i = 0; i < nbPoints; ++i)
-  //  {
- //     add_vertex(g);
-  //  }
-//
-  //          calculatedDistances[j].insert(std::pair<DataType, unsigned int>(dist, i));
-  //        }
-  //      }
-//
-   //     for(unsigned int points = 0; points < nbPoints; ++points)
-  //      {
-  //        unsigned int neighboorNumber = 0;
-  //        for(typename std::multimap<DataType, unsigned int>::iterator potentialEdge 
-//		               = calculatedDistances[points].begin();
-  //           (potentialEdge != calculatedDistances[points].end()) && (neighboorNumber < neighboor);
-   //          ++potentialEdge, ++neighboorNumber)
- //         {
- //           Edge newEdge;
- //           bool inserted;
-//
- //           boost::tie(newEdge, inserted)= add_edge(points, potentialEdge->second, g);
-//            distances[newEdge] = DataTypeTraits<DataType>::sqrt(potentialEdge->first);
- //         }
- //       }
-//
- //       EdgeIterator first, last;
- //       for(boost::tie(first, last) = edges(g); first != last; ++first)
-//        {
-//          std::cout << boost::source(*first, g) << " to " << boost::target(*first, g) << " = ";
-//          std::cout << boost::get(distances, *first) << std::endl;
-//        }
-//        return g;
- //     }
-//
-//
   return 0;
 
 }
@@ -182,24 +113,21 @@ map<string, string> loadFasta(char* filename) {
     fstrm>>c;
     if('>' == c) {
       if(!name.empty()) { 
-	fastaDB.insert(make_pair(name,sequence));
-	//cout << "sequence " << name << " loaded (len=" << sequence.size() << "bp)" << endl;
-	sequence.erase();
+		fastaDB.insert(make_pair(name,sequence));
+		sequence.erase();
       }
       fstrm>>name; 
       fstrm.getline(ch,1000);
     } else {
-      fstrm>>seqline;
-      seqline.insert(0, 1, c);
-      transform(seqline.begin(), seqline.end(), seqline.begin(), (s32(*)(s32)) tolower);
-      sequence.append(seqline);
-      seqline.erase();
+		  fstrm>>seqline;
+		  seqline.insert(0, 1, c);
+		  transform(seqline.begin(), seqline.end(), seqline.begin(), (s32(*)(s32)) tolower);
+		  sequence.append(seqline);
+		  seqline.erase();
     }
   }
-  if(!name.empty()) {
+  if(!name.empty())
     fastaDB.insert(make_pair(name,sequence));
-    //cout << "sequence " << name << " loaded (len=" << sequence.size() << "bp)" << endl;
-  }
   fstrm.close();
   return fastaDB;
 }

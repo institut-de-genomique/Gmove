@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 #include <list>
+#include <map>
 
 using namespace std;
 
@@ -42,12 +43,12 @@ class SSRContig {
   f8 _coverage;
   Tstrand _strand;
   s32 _id;
+  std::map<s32,bool> _idTranscrit;
   Valstate _valstate; //diff validation states
   bool _dblval;
   bool _monoex;
   bool _isAFutureVertice;
   s32 _posnegID;
-  bool deleteVertex; //TODO remove
   
   string* _wholeseq;
   list<SSRContig*> _exons;
@@ -55,7 +56,7 @@ class SSRContig {
   SSRContig* _master;
   string _splice5;
   string _splice3;
-  string _tag; // define if the exon is a start, interne, end or mono exons
+  string _tag; // define if the exon is a start, interne, end or mono exons //XXX delete _tag ?
 
   vector<string> splices5for, splices3for, splices5rev, splices3rev;
   
@@ -82,7 +83,6 @@ class SSRContig {
   static bool endposSort(const SSRContig*, const SSRContig*);
   static bool startposSortAndLength(const SSRContig*, const SSRContig*);
   static bool endposSortAndLength(const SSRContig*, const SSRContig*);
-  //static bool distWithMasterSort(const SSRContig& e1, const SSRContig& e2);
 
   /* Constructors and Destructors*/  
   SSRContig(string& seqname, s32 st, s32 en, f8 coverage, string* seq, Tstrand strand) {
@@ -112,20 +112,9 @@ class SSRContig {
   
   
   ~SSRContig() {  
-   // splices5for.clear();
-   // splices5rev.clear();
-   // splices3for.clear();
-   // splices3rev.clear();
-  //  delete _wholeseq;
-    //_exons.clear();
-   // delete _master;
     for( list<SSRContig*>::iterator itExon = _exons.begin(); itExon!=_exons.end();++itExon){
     	delete *itExon;
     }
- //   for( list<SSRContig*>::iterator itLinked = _linkedWith.begin(); itLinked!= _linkedWith.end();++itLinked){
-  //     	delete *itLinked;
-   //    }
-    //delete _exons, linkedWith
   }
 
   /* Accessors */
@@ -157,6 +146,7 @@ class SSRContig {
   void setStrand(Tstrand strand) { _strand = strand; }
   void setMaster(SSRContig* master) { _master = master; }
   void setID(s32 ident){_id = ident;}
+  void setIdTranscrit(s32 id){_idTranscrit.insert(make_pair(id,true));}
   void setValstate (s32 val){_valstate = val;}
   void set_isdblval(bool val) {_dblval = val;}
   void set_isAsingleexon(bool val) {_monoex = val;}
@@ -172,6 +162,7 @@ class SSRContig {
   string getEnlargeSeq(s32) const;
   string getLeftSeq(s32) const;
   string getRightSeq(s32) const;
+  map<s32,bool> getIdTranscrit()const{return _idTranscrit;};
   void populateExons();
   void clearExons() {_exons.clear();}
   string getName();
@@ -179,7 +170,7 @@ class SSRContig {
 
 string convert(s32 start, s32 end);
 
-// D�finition du foncteur servant � trier nos objets selon le nombre 
+// Definition du foncteur servant a trier nos objets selon le nombre
 struct SortByDistWithMaster
 { 
    bool operator() (const SSRContig* e1, const SSRContig* e2) const 

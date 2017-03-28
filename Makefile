@@ -1,7 +1,11 @@
 BOOST = /usr/include/boost/
 SEQAN = /env/cns/src/seqan-src/include/
 
-CLASS_FILE=DnaDictionary.cpp ReadFile.cpp SSRContig.cpp SSRContigList.cpp SSRContigLists.cpp NetEx.cpp GeneModel.cpp
+DIR_BIN_TEST=~/Windows/workspace/Gmorse/src/c/bin/
+#DIR_BIN_PROD=~/Windows/workspace/Gmorse/src/c/bin/
+DIR_BIN_PROD=$(DIR)
+
+CLASS_FILE=DnaDictionary.cpp ReadFile.cpp SSRContig.cpp SSRContigList.cpp SSRContigLists.cpp NetEx.cpp GeneModel.cpp GeneModelList.cpp
 CLASS_FILE2=DnaDictionary.cpp ReadFile.cpp
 OBJ = ${CLASS_FILE:.cpp=.o}
 OBJ2 = ${CLASS_FILE2:.cpp=.o}
@@ -16,7 +20,7 @@ BIN3=gmove
 COMPILER=g++
 CPPFLAGS += -I$(BOOST) -I. -I$(SEQAN)
 CPPFLAGS += -O3
-CPPFLAGS += -pedantic -W -Wall -Wno-long-long -Wno-variadic-macros
+CPPFLAGS += -W -Wall -Wno-long-long -Wno-variadic-macros
 CPPFLAGS += -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 CPPFLAGS += -g
 LDFLAGS = -L. -lgzstream -lz
@@ -27,15 +31,19 @@ CFLAGS += -I.
 CFLAGS += -O3
 CFLAGS += -c
 
-all: $(OBJ)
-	${COMPILER} ${CPPFLAGS} -o $(BIN1) $(MAIN_FILE1) $(OBJ)
+prod: gmorse gmove kfir
+
+gmorse: $(OBJ)
+	${COMPILER} ${CPPFLAGS} -o $(DIR_BIN_PROD)$(BIN1) $(MAIN_FILE1) $(OBJ)
+	
+gmove: $(OBJ)
+	${COMPILER} ${CPPFLAGS} -o $(DIR_BIN_PROD)$(BIN3) $(MAIN_FILE3) $(OBJ)
 
 kfir: libgzstream.a $(OBJ2)
-	${COMPILER} ${CPPFLAGS} -o $(BIN2) $(MAIN_FILE2) $(OBJ2) ${LDFLAGS}
-
-gmove: $(OBJ)
-	${COMPILER} ${CPPFLAGS} -o $(BIN3) $(MAIN_FILE3) $(OBJ)
-
+	${COMPILER} ${CPPFLAGS} -o $(DIR_BIN_PROD)$(BIN2) $(MAIN_FILE2) $(OBJ2) ${LDFLAGS}
+	
+#gmoveTest:  $(OBJ)
+#	${COMPILER} ${CPPFLAGS} -o $(DIR_BIN_TEST)$(BIN3) $(MAIN_FILE3) $(OBJ)
 
 gzstream.o:
 	${COMPILER} ${CPPFLAGS} -c -o gzstream.o gzstream.cpp

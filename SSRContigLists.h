@@ -45,20 +45,18 @@ protected:
 public:
 	/* Constructors and Destructors*/
 	SSRContigLists() { _nbContigs=0; }
-	SSRContigLists(char*, char*, map<string, string>&);
+//	SSRContigLists(char*, char*, map<string, string>&);
 	SSRContigLists(list<pair< GffRecord, string> > , map<string, string>& ) ;
-	~SSRContigLists() {
+		~SSRContigLists() {
 		for(TcontigLists::iterator itCtg =  _contigs.begin(); itCtg != _contigs.end();++itCtg){
 			delete itCtg->second;
 		}
 	}
 
-	//void setJunctions(map<string,list<string>* > * ptrmap){ _kwJunctions = ptrmap; }
-	//map<string, s32>& getJunctions(){ return _kwJunctions;}
-
-	list<NetEx*> testJunctions(DnaDictionary&, ofstream&);
+	list<NetEx*> testJunctions(DnaDictionary&);
 	void extendCovtigs(DnaDictionary&);
-
+	void cleanJunctions();
 };
+
 
 #endif

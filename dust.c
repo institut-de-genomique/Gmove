@@ -79,7 +79,7 @@ char *s;
 int *beg, *end;
 {
   int i,l1;
-  //int j,v;
+  int j,v;
   l1 = len - word + 1;
   if (l1 < 0) {
     *beg = 0;
