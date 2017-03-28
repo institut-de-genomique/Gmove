@@ -4,7 +4,7 @@
 The script is written in c++, it uses the library boost (http://www.boost.org/) and the library seqAn (http://www.seqan.de/). You should install them and change the path in the Makefile, before compiling it.
 
 # Running Gmove
-`gmove -f <reference sequence> -c <covtigs> -j <junctions> -G <output gene models> {Options}`
+`gmove -f <reference sequence> --rna <rna.gff> {Options}`
 
 # Option
 
@@ -12,18 +12,12 @@ The script is written in c++, it uses the library boost (http://www.boost.org/) 
      INPUT FILES
 
      -f <file> : fasta file which contains genome sequence(s).
-     -c <file> : tabular file which contains covtigs [sequence_name start_position end_position average_coverage].
-     -j <file> : tabular file which contains junctions [sequence_name end_position_of_exon1 start_position_of_exon2 strand].
-                 strand is 1 for forward and -1 for reverse; only four first fields are taken into account.
-     -P <file> : tabular file which contains proteic alignment phase information [sequence_name base_coordinate phase].
      --annot <file> : annotation file in gff
      --rna <file> : rna file in gff
      --prot <file> : prot file in gff
   
      OUTPUT FILES
      -o <folder> : output folder, by default (./out)
-     -C <file> : output extended covtigs in the given file [sequence_name start_position end_position average_coverage]
-     -J <file> : output validated junctions in the given file [sequence_name start_position end_position strand .... ]
   
      Other option :
      -S        : do not output single exon models.
