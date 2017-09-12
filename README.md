@@ -7,8 +7,7 @@ The script is written in c++, it uses the library boost (http://www.boost.org/) 
 `gmove -f <reference sequence> --rna <rna.gff> {Options}`
 
 # Option
-
---------------------------------------------------------------------------------------------
+```
 gmove - Gene modelling using various evidence.
 
 Arguments with * are required, the other are optionnal !!
@@ -34,9 +33,8 @@ Arguments with * are required, the other are optionnal !!
         -b <int>                : number of nucleotides around exons boundaries where to find start and stop codons, default is 30.
         -t                      : gtf format annotation file - default is gff3
         --cds                   : min size CDS, by default 100
-        -h                      : this help
---------------------------------------------------------------------------------------------
-
+        -h                      : this help`
+```
 
 # Input
 Gmove reads **GFF2** and **GFF3** files. It recognizes some specific tags at column 3 : 
