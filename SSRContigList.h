@@ -13,7 +13,6 @@
 #include "LocalType.h"
 #include "SSRContig.h"
 #include "NetEx.h"
-#include "DnaDictionary.h"
 
 #include <iostream>
 #include <sstream>
@@ -33,9 +32,6 @@ class SSRContigList {
   TSSRList _contigs;
 
 
-  void _testJunctionsBetweenCovtigs(SSRContig*, SSRContig*, DnaDictionary&, map<string, s32>&, map<string, s32>&,  map<string, bool>&);
-  s32 _testJunctionsBetweenExons(SSRContig*, SSRContig*, DnaDictionary&, map<string, s32>&, map<string, s32>&);
-  
  public:
   static s32 MINOVERLAPJUNCTION;
   static s32 NBNEIGHBOUR;
@@ -56,7 +52,7 @@ class SSRContigList {
   void push_back(SSRContig* ctg) { return _contigs.push_back(ctg); }
   s32 size() { return _contigs.size(); }
   SSRContig* back() { return _contigs.back();}
-  void print(){//TODO delete, jsut for tests
+  void print(){//TODO delete, just for tests
 	  for(TSSRList::iterator itCtg = _contigs.begin();itCtg!=_contigs.end();++itCtg){
 	 		cout << **itCtg <<endl;
 	 	  }
@@ -67,11 +63,9 @@ class SSRContigList {
   map<s32,list<SSRContig*> > mapCovtigs(TSSRList);
   map<pair<string, s32>,list<string> > mapJunctions(map<string,s32> junction);
 
-  NetEx* testJunctions(DnaDictionary&, map<string, s32>&);
+  NetEx* buildGraph(map<string, s32>&);
 
-  void extendCovtigs(DnaDictionary&);
-  void cleanExons(s32&);
-  s32 cleanExon(SSRContig*, s32, map<s32, bool>&, map<s32, bool>&);
+//  void extendCovtigs();
   TSSRList* exons2vertices();
   list<Edge>* junctions2edges(TSSRList*, map<string,s32>, map<Edge,s32>&);
 

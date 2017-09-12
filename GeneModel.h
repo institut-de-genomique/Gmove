@@ -16,7 +16,6 @@
 #include <map>
 #include "SSRContig.h"
 #include "LocalType.h"
-#include "DnaDictionary.h"
 #include <iterator>
 #include <ctime>
 

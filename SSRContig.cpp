@@ -60,6 +60,11 @@ vector<string>::iterator it;
 	 stop >= _startpos+SSRContig::MINSIZEEXON) {
     	  SSRContig* exon = new SSRContig(_seqname, start, stop, _coverage, _wholeseq,strand);//FIXME memory leak
     	  exon->setMaster(this);
+    	  for(map<s32,bool>::iterator itMap = this->getIdTranscrit().begin() ; itMap != this->getIdTranscrit().end(); ++itMap){
+
+    		  exon->setIdTranscrit(itMap->first);
+    	  }
+
     	  _exons.push_back(exon);
       }
     }
@@ -70,12 +75,16 @@ vector<string>::iterator it;
 		  _startpos <= _endpos-SSRContig::MINSIZEEXON &&
 	 _endpos >= _startpos+SSRContig::MINSIZEEXON) {
    SSRContig* exonSelf = new SSRContig(_seqname, _startpos, _endpos, _coverage, _wholeseq,strand); //FIXME memory leak
+   map<s32,bool> tmpMap = this->getIdTranscrit();
+   for(map<s32,bool>::iterator itMap = tmpMap.begin() ; itMap != tmpMap.end(); ++itMap){
+   		  exonSelf->setIdTranscrit(itMap->first);
+      	  }
   exonSelf->setMaster(this);
-  exonSelf->setTag(_tag);
+//  exonSelf->setTag(_tag);
   _exons.push_back(exonSelf);
   }
   /* sorts all exons according to distance with covtig */
-  _exons.sort(SortByDistWithMaster());
+//  _exons.sort(SortByDistWithMaster());
 }
 
 // to get the enlarged sequence of the covtig
@@ -143,7 +152,7 @@ bool SSRContig::startposSortAndLength(const SSRContig* ctg1, const SSRContig* ct
 bool SSRContig::endposSortAndLength(const SSRContig* ctg1, const SSRContig* ctg2) { return (ctg1->end() < ctg2->end() && ctg1->size() > ctg2->size()); }
 
 // to calculate the number of times each junction between 2 covtigs is seen in the dictionary
-s32 nbJunctions(SSRContig* exon1, SSRContig* exon2, DnaDictionary& dict, s32 min_overlap, string& listeJ) {
+/*s32 nbJunctions(SSRContig* exon1, SSRContig* exon2, s32 min_overlap, string& listeJ) {
   s32 nbTot = 0, first = 1, nbWords = 0;//, nbOffset = 0, nbThreshold = 0;
   ostringstream oss;
   for(s32 i = dict.getWordSize()-min_overlap ; i >= min_overlap ; i--) {
@@ -163,7 +172,7 @@ s32 nbJunctions(SSRContig* exon1, SSRContig* exon2, DnaDictionary& dict, s32 min
   listeJ = oss.str();
   return nbTot;
 }
-
+*/
 // to print a covtig's information
 ostream& operator<<(ostream& ostr, const SSRContig& d) {
   return ostr<< d.getID()<<" " << d.seqName() << " " << d.start() << " " << d.end() << " " << d.strand();

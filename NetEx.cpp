@@ -117,7 +117,7 @@ s32 NetEx::count_paths(s32 node, map<s32, s32>& subs) {
 
 //NetEx::
 // all paths finder 
-list<list<s32> > NetEx::allPathsFinder(list<s32>& comp) {//XXX Je ne comprend pas cette fonction. Bcp d'aller retour pour trouver les chemins. Il doit y avoir un moyen plus simple de le faire
+list<list<s32> > NetEx::allPathsFinder(list<s32>& comp) {
   list<list<s32> > selectedPaths;
   list<s32> sources;
   // AJOUT MAX
@@ -168,34 +168,72 @@ void NetEx::printMap (map<s32,list < list<s32> > > mapP){
 s32 NetEx::nodeToVertex(s32 id){
 	TSSRList::iterator it1 = _vertices->begin();
 	advance(it1,id);
+//	cout <<"print in nodeToVertex " << *(*it1) << endl;
 	s32 childId = (*it1)->getID();
 	return childId;
 }
-void NetEx::bfs(s32 startId,map<s32,list < list<s32> > >& paths , map<s32,s32> vertexToBGL){
+void NetEx::bfs(s32 startId,map<s32,list < list<s32> > >& paths , map<s32,s32> vertexToBGL,s32 currentColor,list<s32>& colorNotAllowed,std::queue<s32> & Qbfs  ){
+	cout << "enter in BFS" << endl;
 	out_edge_it ei, ei_end;
-	std::queue<s32> Qbfs ;
-	Qbfs.push(startId);
+	bool boolRecurciveCall = false;
+	time_t before,after,beforeFor;
 	while (! Qbfs.empty()) {
+		cout <<"enter in while" <<endl;
+		cout << "QBFS " << Qbfs.size() << endl;
 		s32 parentId = Qbfs.front(); Qbfs.pop();
+
 		map<s32,s32>::iterator itVB = vertexToBGL.find(parentId);
 		if(itVB == vertexToBGL.end()){
 			cerr << "error do not find id in vertex "<< parentId<<endl;
 			exit(1);
 		}
 		s32 idNodeParent = itVB->second;
-		map<s32,list<list <s32> > >::iterator itPathParent = paths.find(parentId);
-		//for mono exoniques
-		if(out_degree(idNodeParent,_graph) == 0 && itPathParent == paths.end()){
+			map<s32,list<list <s32> > >::iterator itPathParent = paths.find(parentId);
+			/*			cout <<"number of out edges " << out_degree(idNodeParent,_graph)<< " itPathParent " << parentId << " path end "<< itPathParent->first<< " paths " << paths.size() << endl;
+
+			if(out_degree(idNodeParent,_graph) == 0 && itPathParent == paths.end()){//for mono exoniques
+			cout <<" mono " << endl;
 			list<s32> newPath;
 			list<list<s32> > newList;
 			newPath.push_back(parentId);
 			newList.push_back(newPath);
 			paths.insert(make_pair(parentId,newList));
 		}
+*/		before = time(NULL);
+
 		for (tie(ei, ei_end) = out_edges(idNodeParent, _graph); ei != ei_end; ++ei) {
+			cout <<"loop on out edges "<<endl;
 			s32 childId = nodeToVertex(target(*ei, _graph));
+			//check the color before doing anything
+			//Which color is my child node ?
+			TSSRList::iterator it1 = _vertices->begin();
+			advance(it1,target(*ei, _graph));
+			map<s32,bool> mapIdTranscrit = (*it1)->getIdTranscrit();
+			map<s32,bool>::iterator itColorChild = mapIdTranscrit.find(currentColor);
+
+			if(itColorChild == mapIdTranscrit.end()){
+				bool boolColorNotAllowed = false;
+				beforeFor = time(NULL);
+				for(list<s32>::iterator itList = colorNotAllowed.begin(); itList != colorNotAllowed.end();++itList){
+					map<s32,bool>::iterator itNotAllowed = mapIdTranscrit.find(*itList);
+					if(itNotAllowed != mapIdTranscrit.end()){
+						boolColorNotAllowed = true;
+						break;
+					}
+				}
+				after = time(NULL);
+			if(PRINTTIME)	cout << " time allPathFinder for colorNotAllowed " << difftime(after,beforeFor)<< endl;
+				if(boolColorNotAllowed)
+					continue;
+				else{
+					colorNotAllowed.push_back(currentColor);
+					boolRecurciveCall = true;
+				}
+
+			}
 			map<s32,list<list <s32> > >::iterator itPathChild = paths.find(childId);
 			if(itPathChild != paths.end()){ // update Qbfs
+				beforeFor = time(NULL);
 				for(list<list <s32> >::iterator itListPathChild = itPathChild->second.begin(); itListPathChild != itPathChild->second.end();++itListPathChild){
 					list<s32>::iterator itLL;
 					itLL = std::find(itListPathChild->begin(), itListPathChild->end(), parentId);
@@ -204,9 +242,154 @@ void NetEx::bfs(s32 startId,map<s32,list < list<s32> > >& paths , map<s32,s32> v
 					else
 						Qbfs.push(childId);
 				}
+				after = time(NULL);
+			if(PRINTTIME)	cout << " time allPathFinder for itPathChild" << difftime(after,beforeFor)<< endl;
 			}
 			else
 				Qbfs.push(childId);
+
+			//Start BFS
+			if(itPathChild == paths.end()){//if PathChild doesnt exist
+				cout << "no path child " << endl;
+				list<list<s32> > newList;
+				if(itPathParent != paths.end()){//if Parent contains a path
+					beforeFor = time(NULL);
+					for(list<list <s32> >::iterator itListPathParent = itPathParent->second.begin(); itListPathParent != itPathParent->second.end();++itListPathParent){
+						list<s32> newPath;
+						for(list<s32>::iterator itL = itListPathParent->begin() ; itL != itListPathParent->end() ; ++itL){
+							newPath.push_back(*itL);
+						}
+						newPath.push_back(childId);
+						newList.push_back(newPath);
+					}
+					after = time(NULL);
+				if(PRINTTIME)	cout << " time allPathFinder for itPathParent" << difftime(after,beforeFor)<< endl;
+					paths.insert(make_pair(childId,newList));
+				}
+				else{
+					list<s32> newPath;
+					newPath.push_back(parentId);
+					newPath.push_back(childId);
+					newList.push_back(newPath);
+					if (paths.find(childId) != paths.end()){
+						cout << "Error child id already in predListList " <<endl;
+						exit(1);
+					}
+					paths.insert(make_pair(childId,newList));
+				}
+			}
+			else{
+				cout <<"path child " << endl;
+				beforeFor = time(NULL);
+				list<list <s32> > copyList(paths[parentId]);
+				for(list<list <s32> >::iterator itCopyList = copyList.begin(); itCopyList != copyList.end();++itCopyList){
+					itCopyList->push_back(childId);
+				}
+				itPathChild->second.merge(copyList);
+				itPathChild->second.unique();
+				after = time(NULL);
+				if(PRINTTIME) cout << " time allPathFinder for itCopyList" << difftime(after,beforeFor)<< endl;
+			}
+			if(boolRecurciveCall){
+				cout <<"recurcive call of searchColor " << endl;
+				searchAllColor(target(*ei, _graph), paths,colorNotAllowed);
+			}
+
+		}
+		after = time(NULL);
+		if(PRINTTIME)	cout << " time allPathFinder BFS " << difftime(after,before)<< endl;
+	}//While
+
+}
+
+
+
+void NetEx::dfs(s32 startId,map<s32,list < list<s32> > >& paths , map<s32,s32> vertexToBGL,s32 currentColor,list<s32>& colorNotAllowed,std::stack<s32>& Sdfs ){
+	out_edge_it ei, ei_end;
+//	std::stack<s32> Sdfs ;
+//	Sdfs.push(startId);
+
+	map<s32,s32> mapCurrentColor;
+	mapCurrentColor.insert(make_pair(startId,currentColor));
+	while (! Sdfs.empty()) {
+		s32 parentId = Sdfs.top(); Sdfs.pop();
+		map<s32,s32>::iterator itVB = vertexToBGL.find(parentId);
+		if(itVB == vertexToBGL.end()){
+			cerr << "error do not find id in vertex "<< parentId<<endl;
+			exit(1);
+		}
+		s32 idNodeParent = itVB->second;
+		map<s32,list<list <s32> > >::iterator itPathParent = paths.find(parentId);
+
+
+		if(out_degree(idNodeParent,_graph) == 0 && itPathParent == paths.end()){//for mono exoniques
+			list<s32> newPath;
+			list<list<s32> > newList;
+			newPath.push_back(parentId);
+			newList.push_back(newPath);
+			paths.insert(make_pair(parentId,newList));
+		}
+	//	currentColor = mapCurrentColor[parentId];
+		for (tie(ei, ei_end) = out_edges(idNodeParent, _graph); ei != ei_end; ++ei) {
+			s32 childId = nodeToVertex(target(*ei, _graph));
+			//check the color before doing enything
+			//Which color is my child node ?
+			TSSRList::iterator it1 = _vertices->begin();
+			advance(it1,target(*ei, _graph));
+			map<s32,bool> mapIdTranscrit = (*it1)->getIdTranscrit();
+			cout << "\n\n\t\t * parent " << parentId << " child " << childId <<" current color " << currentColor << endl;
+			cout << " sources map id transcrit " <<childId << " : map size " << mapIdTranscrit.size() << endl;
+			for(map<s32,bool>::iterator itMap = mapIdTranscrit.begin() ; itMap != mapIdTranscrit.end(); ++itMap){
+					cout <<"color child " <<  itMap->first << endl;
+			}
+			map<s32,bool>::iterator itColorChild = mapIdTranscrit.find(currentColor);
+
+			if(itColorChild == mapIdTranscrit.end()){
+				bool boolColorNotAllowed = false;
+				for(list<s32>::iterator itList = colorNotAllowed.begin(); itList != colorNotAllowed.end();++itList){
+					map<s32,bool>::iterator itNotAllowed = mapIdTranscrit.find(*itList);
+					if(itNotAllowed != mapIdTranscrit.end()){
+						cout << " no correspondance between colorChild and currentColor, stop "<<endl;
+						cout <<itNotAllowed->first << " " << *itList << " break " << endl;
+						boolColorNotAllowed = true;
+						break;
+					}
+				}
+				if(boolColorNotAllowed)
+					continue;
+				else{
+					cout << "add color to notAllow " << currentColor << " new currentColor is "<< mapIdTranscrit.begin()->first<<endl;
+					colorNotAllowed.push_back(currentColor);
+					//call recurcive
+					cout << "call recurcive searchColor childId " << childId << endl;
+					searchAllColor(target(*ei, _graph), paths,colorNotAllowed);
+				//	currentColor = mapIdTranscrit.begin()->first; //FIXME how to assign currentColor if multiple color in map ?
+				//	cout << "new current color " << currentColor << endl;
+				}
+
+			}
+			else{
+				cout << " child Color correspond to currentColor, continue script " << endl;
+			}
+			map<s32,list<list <s32> > >::iterator itPathChild = paths.find(childId);
+			if(itPathChild != paths.end()){ // update Qbfs
+				for(list<list <s32> >::iterator itListPathChild = itPathChild->second.begin(); itListPathChild != itPathChild->second.end();++itListPathChild){
+					list<s32>::iterator itLL;
+					itLL = std::find(itListPathChild->begin(), itListPathChild->end(), parentId);
+					if(itLL != itListPathChild->end())
+						break;
+					else{
+						Sdfs.push(childId);
+						cout << "add to stack " << childId << endl;
+					}
+
+				}
+			}
+			else{
+				Sdfs.push(childId);
+				cout << "add to stack "<< childId << endl;
+			}
+
 
 			//Start BFS
 			if(itPathChild == paths.end()){//if PathChild doesnt exist
@@ -242,10 +425,10 @@ void NetEx::bfs(s32 startId,map<s32,list < list<s32> > >& paths , map<s32,s32> v
 				itPathChild->second.merge(copyList);
 				itPathChild->second.unique();
 			}
+			mapCurrentColor.insert(make_pair(parentId,currentColor));
 		}
 	}//While
 }
-
 map<s32,s32> NetEx::mapIdsVertextoBGL(){
 	map<s32,s32> vertexToBGL;
 	vertex_it currentNode,endNode;
@@ -266,22 +449,72 @@ list<list<s32> > NetEx::PathsFinderWithCondition(list<s32> comp){
 	map<s32,list < list<s32> > >predM;
 	list<s32> endList = endNodes(comp);
 	list<list<s32> > paths;
-	map<s32,s32> vertexToBGL;
-	s32 idVertex ;
-	vertexToBGL = mapIdsVertextoBGL();
-
+	time_t before, after;
 	for(list<s32>::iterator itSources = sources.begin() ; itSources != sources.end() ; ++itSources){
-		idVertex = nodeToVertex(*itSources);
+		cout <<"PathsFinderWithCondition Sources " << *itSources  << endl;
 		predM.clear();
-		bfs( idVertex,predM, vertexToBGL);
+		list<s32> colorNotAllowed;
+		before = time(NULL);
+		searchAllColor(*itSources, predM,colorNotAllowed);
+		after = time(NULL);
+	if(PRINTTIME)	cout << " time allPathFinder searchAllColor " << difftime(after,before)<< endl;
 //		printMap(predM);
+		before = time(NULL);
 		for(list<s32>::iterator itEnd = endList.begin() ; itEnd != endList.end() ; ++itEnd){
 			s32 childId = nodeToVertex(*itEnd);
 			map<s32,list < list<s32> > >::iterator itPred = predM.find(childId);
 			paths.splice(paths.end(), predM[childId]);
 		}
+		after = time(NULL);
+	if(PRINTTIME)	cout << " time allPathFinder for loop " << difftime(after,before)<< endl;
 	}
+	before = time(NULL);
+	paths.sort();
+	after = time(NULL);
+	if(PRINTTIME) cout << " time allPathFinder sort " << difftime(after,before)<< endl;
+	before = time(NULL);
+	paths.unique();
+	after = time(NULL);
+	if(PRINTTIME) cout << " time allPathFinder unique " << difftime(after,before)<< endl;
 	 return paths;
+}
+
+void NetEx::searchAllColor(s32 idSource,map<s32,list < list<s32> > >& predM,list<s32>& colorNotAllowed){
+	s32 idVertex = nodeToVertex(idSource);
+	TSSRList::iterator it1 = _vertices->begin();
+	advance(it1,idSource);
+	SSRContig* ctg = *it1;
+	map<s32,s32> vertexToBGL = mapIdsVertextoBGL();
+	map<s32,bool> mapIdTranscrit = ctg->getIdTranscrit();
+//	std::stack<s32> Sdfs ;
+	std::queue<s32> Qbfs ;
+
+//	Sdfs.push(idVertex);
+	time_t before = time(NULL);
+
+
+			map<s32,list<list <s32> > >::iterator itPathParent = predM.find(idVertex);
+			cout <<"number of out edges " << out_degree(idSource,_graph)<< " itPathParent " << idVertex << " path end "<< itPathParent->first<< " paths " << predM.size() << endl;
+			if(out_degree(idSource,_graph) == 0 && itPathParent == predM.end()){//for mono exoniques
+				cout <<" mono " << endl;
+				list<s32> newPath;
+				list<list<s32> > newList;
+				newPath.push_back(idVertex);
+				newList.push_back(newPath);
+				predM.insert(make_pair(idVertex,newList));
+			}
+			else if(out_degree(idSource,_graph) != 0 ){
+				for(map<s32,bool>::iterator itMap = mapIdTranscrit.begin() ; itMap != mapIdTranscrit.end(); ++itMap){
+				cout << "current color "<< itMap->first<<" idVertex "<< idVertex<< " predM " << predM.end()->first << endl;
+					s32 currentColor = itMap->first;
+						Qbfs.push(idVertex);
+						bfs(idVertex,predM , vertexToBGL, currentColor,colorNotAllowed,Qbfs);
+				}
+
+	//	dfs( idVertex,predM, vertexToBGL,currentColor,colorNotAllowed,Sdfs);
+	}
+	time_t after = time(NULL);
+if(PRINTTIME)	cout << " time allPathFinder loop on bfs " << difftime(after,before)<< endl;
 }
 
 
@@ -289,14 +522,12 @@ list<list<s32> > NetEx::PathsFinderWithCondition(list<s32> comp){
 void NetEx::compute_paths(s32 node, list<s32>& path, map<s32, list<list<s32> > >& solved) {
   list<s32> tmp_path = path; 
   // On est arrivé sur un noeud déjà connu ?
-
   s32 idVertex = nodeToVertex(node);
   if (solved.find(idVertex) != solved.end()) {
     list<s32> final_path;
     list<s32> *path_ref;
     s32 start_node;
     list<list<s32> >::iterator solved_path;
-
     // On ajoute tous les sous chemins à la liste résolue
     while(tmp_path.begin() != tmp_path.end()) {
      start_node = tmp_path.front();
@@ -367,7 +598,7 @@ void NetEx::tagExons(map<string,s32>& inExon, map<s32,TSSRList>& mapStartExon,ma
 
 
 void NetEx::cleanGraph(){
-	 cerr << " Before cleaning, number vertices " << num_vertices(_graph) << " number edges "<< num_edges(_graph)<<endl;
+	 cerr << "\tBefore cleaning, number vertices " << num_vertices(_graph) << " number edges "<< num_edges(_graph)<<endl;
 	//it will clean the component regarding the start and end exons.
 	s32 left,right,left2,right2;
 	//Tag exons
@@ -558,8 +789,7 @@ void NetEx::cleanGraph(){
 
 	}
 	 deleteNode();
-	 cerr << " After cleaning, number vertices " << num_vertices(_graph) << " number edges "<< num_edges(_graph)<<endl;
-	 cerr << "delete mono " << deleteMono<<endl;
+	 cerr << "\tAfter cleaning, number vertices " << num_vertices(_graph) << " number edges "<< num_edges(_graph)<<endl;
 }
 
 void NetEx::deleteNode(){
@@ -605,7 +835,7 @@ void NetEx::simplifyBigGraph(list<s32>comp,s32 threshold){
 			nbEdges += out_degree(*j,_graph);
 			for (pair<out_edge_it, out_edge_it> pEdges = out_edges(*j, _graph); pEdges.first != pEdges.second; ++pEdges.first){
 				getWeight =  get(edge_weight_t(), _graph,*pEdges.first);
-				if(getWeight < threshold )//TODO 2 in argument to increase it in case of big graph
+				if(getWeight < threshold )
 					remove_edge(*pEdges.first, _graph);
 			}
 		}

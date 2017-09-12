@@ -14,7 +14,7 @@ void GeneModelList::deleteIncludedModel(){
 	list<GeneModel>::iterator itNext ;
 	list<GeneModel> tmpList = _models;
 	s32 cdsSize1,cdsSize2;
-
+//	cout << "deleteIncludedModel " << _models.size() << endl;
 	for(list<GeneModel>::iterator itOfGene = _models.begin(); itOfGene != --_models.end();++itOfGene){
 		if(_models.size() == 1 )
 			break;
@@ -67,11 +67,13 @@ void GeneModelList::deleteIncludedModel(){
 				if((itExon1->first == itExon2->first && itExon1->second == itExon2->second ) || (itExon1 == exonCDS1.begin() && itExon1->first >= itExon2->first && itExon1->second == itExon2->second) || (itExon2 == exonCDS2.begin() && itExon2->first >= itExon1->first && itExon2->second == itExon1->second)){
 					if(itExon1->second+ itOfGene->get3pXL() == finCDS1 && cdsSize1 <= cdsSize2){
 						itOfGene->setToDelete(true);
+				//		cout << "*** DELETE model " << endl;
 						LOOP = false;
 						break;
 					}
 					else if (itExon2->second + itNext->get3pXL() == finCDS2  && cdsSize2 <= cdsSize1){
 						itNext->setToDelete(true);
+			//			cout << "*** DELETE model " << endl;
 						break;
 					}
 					continue;
@@ -79,11 +81,13 @@ void GeneModelList::deleteIncludedModel(){
 				else{
 					if(itExon1->second>= finCDS1 && cdsSize1 <= cdsSize2 && itExon1->second < itExon2->second){ //On n'a plus la meme cds mais on verifie si on n'a pas atteint la fin de l'une d'elles
 						itOfGene->setToDelete(true);
+			//			cout << "*** DELETE model " << endl;
 						LOOP = false;
 						break;
 					}
 					else if (itExon2->second>= finCDS2 && cdsSize2 <= cdsSize1 && itExon2->second < itExon1->second){
 						itNext->setToDelete(true);
+			//			cout << "*** DELETE model " << endl;
 						break;
 					}
 					else
@@ -92,6 +96,7 @@ void GeneModelList::deleteIncludedModel(){
 			}
 		}//for loop itNext
 	}//for loop itOfGene
+//	cout << "deletedIncludedModel after " << _models.size() << endl;
 
 }
 

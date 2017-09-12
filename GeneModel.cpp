@@ -408,7 +408,7 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
       _start_found = 0;
       _stop_found = 1;
       cout << "I find it in selectORF !!" << endl;
-   //   exit(1);
+      exit(1);
     }
   }
   

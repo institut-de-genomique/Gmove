@@ -13,7 +13,6 @@
 
 #include "LocalType.h"
 #include "SSRContig.h"
-#include "DnaDictionary.h"
 
 #include <boost/config.hpp>
 #include <boost/graph/graphviz.hpp>
@@ -47,8 +46,12 @@
 #include <map>
 #include <vector>
 #include <list>
-#include<queue>
+#include <queue>
+#include <stack>
 #include <algorithm>
+#include <time.h>
+
+extern bool PRINTTIME;
 
 
 using namespace std;
@@ -113,22 +116,17 @@ class NetEx {
   
   /* Constructors and Destructors*/  
   NetEx(TSSRList* exons, list<Edge>* ed, string &seqname,  map<Edge,s32> w) {
-
-
 	  IndexMappp mapIndexxx;
-	    associative_property_map<IndexMappp> propmapIndex(mapIndexxx);
-
-
+	  associative_property_map<IndexMappp> propmapIndex(mapIndexxx);
 	  _nb_connected_components = 0 ;
-    _vertices = exons;
-    _edges = ed;
-    _seqname = seqname;
-    _graph = Graph(_edges->begin(), _edges->end(), _vertices->size());
+	  _vertices = exons;
+	  _edges = ed;
+	  _seqname = seqname;
+	  _graph = Graph(_edges->begin(), _edges->end(), _vertices->size());
 
-    _weightEdge = w;
+	  _weightEdge = w;
 
 
-    //TEST CREATION WEIGHTED EDGES
     pair<edge_it, edge_it> p = edges(_graph);
     for(edge_it it = p.first ; it != p.second ; it++) {
     	s32 startEdge, endEdge;
@@ -176,9 +174,11 @@ class NetEx {
   list<list<int> > allPathsFinder(list<s32>&);
 
   s32 nodeToVertex(s32 idNode);
-  void bfs(s32 s,map<s32,list < list<s32> > >& predM,map<s32,s32>);
+  void bfs(s32 startId,map<s32,list < list<s32> > >& paths , map<s32,s32> vertexToBGL,s32 currentColor,list<s32>& colorNotAllowed,std::queue<s32> & Qbfs  );
+  void dfs(s32 startId,map<s32,list < list<s32> > >& paths , map<s32,s32> vertexToBGL,s32,list<s32> &,std::stack<s32> & );
   void printMap (map<s32,list < list<s32> > > mapP);
   list<list<s32> > PathsFinderWithCondition(list<s32> comp);
+  void searchAllColor(s32 idSource,map<s32,list < list<s32> > >& predM,list<s32>& colorNotAllowed);
   map<s32,s32> mapIdsVertextoBGL();
   void countVerticesAndEgdes(list<s32>&, s32&, s32&);
   list<s32> sourcesNodes(list<s32>comp);

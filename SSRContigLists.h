@@ -14,23 +14,22 @@
 #include "SSRContig.h"
 #include "SSRContigList.h"
 #include "NetEx.h"
-#include "DnaDictionary.h"
-//#include "PETags.h"
+#include "GffRecordList.h"
 
 #include <boost/shared_ptr.hpp>
 #include <iostream>
 #include <string>
 #include <map>
 #include <list>
-#include <seqan/basic.h>
-#include <seqan/gff_io.h>
-#include <seqan/stream.h>
+//#include <seqan/basic.h>
+//#include <seqan/gff_io.h>
+//#include <seqan/stream.h>
 
 using namespace std;
 using namespace boost;
-using namespace seqan;
+//using namespace seqan;
 
-typedef map<string, SSRContigList*> TcontigLists;
+typedef map<string, SSRContigList*> TcontigLists; // map<scaffold, listExons>
 
 
 class SSRContigLists {
@@ -39,22 +38,22 @@ class SSRContigLists {
 
 protected:
 	TcontigLists _contigs;
-	s32 _nbContigs;
+//	s32 _nbContigs;
 	map<string, s32> _kwJunctions; // map of Junctions from the junctionFile
+	map<s32,list<string> > _transcrit;
 
 public:
 	/* Constructors and Destructors*/
-	SSRContigLists() { _nbContigs=0; }
-//	SSRContigLists(char*, char*, map<string, string>&);
-	SSRContigLists(list<pair< GffRecord, string> > , map<string, string>& ) ;
+	SSRContigLists() { /*_nbContigs=0;*/ }
+	SSRContigLists(GffRecordList , map<string, string>& ) ;
 		~SSRContigLists() {
 		for(TcontigLists::iterator itCtg =  _contigs.begin(); itCtg != _contigs.end();++itCtg){
 			delete itCtg->second;
 		}
 	}
 
-	list<NetEx*> testJunctions(DnaDictionary&);
-	void extendCovtigs(DnaDictionary&);
+	list<NetEx*> buildGraph();
+//	void extendCovtigs(DnaDictionary&);
 	void cleanJunctions();
 };
 

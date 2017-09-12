@@ -11,7 +11,6 @@
 #define JM_SSR_CONTIG_H
 
 #include "LocalType.h"
-#include "DnaDictionary.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -33,7 +32,7 @@ class SSRContig {
   friend bool sameStart(SSRContig* ctg1, SSRContig* ctg2);
   friend bool sameStrand(SSRContig*, SSRContig*);// return True if same strand or if for one the strand is unknown, not enough info
   friend bool distantFrom(SSRContig*, SSRContig*, s32);
-  friend s32 nbJunctions(SSRContig*, SSRContig*, DnaDictionary&, s32, string&);
+ // friend s32 nbJunctions(SSRContig*, SSRContig*, s32, string&);
   friend bool operator < (const SSRContig& e1, const SSRContig& e2) { return e1._startpos < e2._startpos; }
 
  protected:
@@ -56,7 +55,7 @@ class SSRContig {
   SSRContig* _master;
   string _splice5;
   string _splice3;
-  string _tag; // define if the exon is a start, interne, end or mono exons //XXX delete _tag ?
+ // string _tag; // define if the exon is a start, interne, end or mono exons
 
   vector<string> splices5for, splices3for, splices5rev, splices3rev;
   
@@ -99,8 +98,7 @@ class SSRContig {
     _monoex = true;
     _isAFutureVertice = false;
     _posnegID = 0;
-    _tag = "";
-    
+ //   _idTranscrit.insert(make_pair(idTranscrit,true));
     splices5for.push_back("gt");
     splices5for.push_back("gc");
     splices3for.push_back("ag");
@@ -122,7 +120,7 @@ class SSRContig {
   s32 end() const { return _endpos; }
   f8 coverage() const { return _coverage; }
   s32 strand() const { return _strand; }
-  string tag() const { return _tag;}
+//  string tag() const { return _tag;}
   bool isKnownStrand() const { return (_strand != UNKNOWN); }
   string seqName() const { return _seqname; }
   string getSeq() const { return getEnlargeSeq(0); }
@@ -141,7 +139,7 @@ class SSRContig {
   s32 size() const { return _endpos-_startpos+1; }
   s32 getPosNegID() const { return _posnegID; }
   
-  s32 distWithMaster() const { return (abs(_startpos-_master->start()) + abs(_endpos-_master->end())); }
+//  s32 distWithMaster() const { return (abs(_startpos-_master->start()) + abs(_endpos-_master->end())); }
 
   void setStrand(Tstrand strand) { _strand = strand; }
   void setMaster(SSRContig* master) { _master = master; }
@@ -156,7 +154,7 @@ class SSRContig {
   void setSplice5(string s) { _splice5 = s; }
   void setSplice3(string s) { _splice3 = s; }
   void setPosNegID(s32 posnegID) { _posnegID = posnegID; }
-  void setTag(string t){_tag = t;}
+//  void setTag(string t){_tag = t;}
   
   /* Methods */
   string getEnlargeSeq(s32) const;
@@ -171,12 +169,12 @@ class SSRContig {
 string convert(s32 start, s32 end);
 
 // Definition du foncteur servant a trier nos objets selon le nombre
-struct SortByDistWithMaster
+/*struct SortByDistWithMaster
 { 
    bool operator() (const SSRContig* e1, const SSRContig* e2) const 
    { 
       return e1->distWithMaster() < e2->distWithMaster();
    } 
 }; 
-
+*/
 #endif
