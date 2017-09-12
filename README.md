@@ -1,45 +1,47 @@
 # Gmove
 
 # Dependencies
-The script is written in c++, it uses the library boost (http://www.boost.org/) and the library seqAn (http://www.seqan.de/). You should install them and change the path in the Makefile, before compiling it.
+The script is written in c++, it uses the library boost (http://www.boost.org/) You should install them and change the path in the Makefile, before compiling it.
 
 # Running Gmove
 `gmove -f <reference sequence> --rna <rna.gff> {Options}`
 
 # Option
 
-    gmove - Gene modelling using various evidence.
+--------------------------------------------------------------------------------------------
+gmove - Gene modelling using various evidence.
 
-    Usage : gmove -f <reference sequence> --rna rna.gff {Options}
-    !! Note : Arguments with * are required, the other are optionnal !!
+Arguments with * are required, the other are optionnal !!
 
-    INPUT FILES
-    *-f <file>          : fasta file which contains genome sequence(s).
+ INPUT FILES
+        *-f <file>              : fasta file which contains genome sequence(s).
+        --rna <file>            : rna file in gff (expect tag 'exon' or 'HSP' in column 3)
+        --prot <file>           : prot file in gff (expect tag 'exon' or 'HSP' in column 3)
+        --annot <file>          : annotation file in gff (expect tag 'CDS' or 'UTR' in column 3)
+        --abinitio <file>       : ab initio file in gff (expect tag 'CDS' or 'UTR' in column 3)
 
-     --annot <file>     : annotation file in gff
-     --rna <file>               : rna file in gff
-     --prot <file>      : prot file in gff
-    OUTPUT FILES
-     -o <folder>        : output folder, by default (./out)
-     --raw              : output raw data
+ OUTPUT FILES
+        -o <folder>             : output folder, by default (./out)
+        --raw                   : output raw data
 
-     -S                 : do not output single exon models.
-     -e <int>   : minimal size of exons, default is 9 nucleotides.
-     -i <int>   : minimal size of introns, default is 9 nucleotides.
-     -m <int>   : maximal size of introns, default is 50.000 nucleotides.
-     -p <int>   : maximal number of paths inside a connected component, default is 10,000.
-     -b <int>   : number of nucleotides around exons boundaries where to find start and stop codons, default is 30.
-     -t         : gtf format annotation file - default is gff3
-     -u         : choose model strand according to longest ORF - only works if input junctions are non-oriented
-     --cds         : min size CDS, by default 100
-     -h         : this help
-     --ratio                        : ratio CDS/UTR min 80% de CDS
+        --ratio                 : ratio CDS/UTR min 80% de CDS
+        -S                      : do not output single exon models.
+        -e <int>                : minimal size of exons, default is 9 nucleotides.
+        -i <int>                : minimal size of introns, default is 9 nucleotides.
+        -m <int>                : maximal size of introns, default is 50.000 nucleotides.
+        -p <int>                : maximal number of paths inside a connected component, default is 10,000.
+        -x <int>                : size of regions where to find splice site around covtigs boundaries, default is 0.
+        -b <int>                : number of nucleotides around exons boundaries where to find start and stop codons, default is 30.
+        -t                      : gtf format annotation file - default is gff3
+        --cds                   : min size CDS, by default 100
+        -h                      : this help
+--------------------------------------------------------------------------------------------
 
 
 # Input
 Gmove reads **GFF2** and **GFF3** files. It recognizes some specific tags at column 3 : 
   - for files parse with the options `--rna` and `--prot`, it recognizes the tags **HSP** and **exon**
-  - for files parse with the option `--annot`, it recognizes the tags **UTR** and **CDS**
+  - for files parse with the option `--annot` and `--abinitio`, it recognizes the tags **UTR** and **CDS**
   
   ## Preparing the files
     The transcript/protein's id (in the last column of the GFF files ) has to be uniq.
@@ -53,14 +55,12 @@ Gmove reads **GFF2** and **GFF3** files. It recognizes some specific tags at col
 # Output
 The script will output a GFF or GTF file. 
 
-
-
 # Installation
 Install the dependencies
 
 Download the git repository
 
-Change the path in the Makefile
+Change the path to the dependencies in the Makefile
 
 make gmove
 
