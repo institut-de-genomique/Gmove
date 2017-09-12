@@ -20,7 +20,7 @@ Arguments with * are required, the other are optionnal !!
         --abinitio <file>       : ab initio file in gff (expect tag 'CDS' or 'UTR' in column 3)
 
  OUTPUT FILES
-        -o <folder>             : output folder, by default (./out)
+        -o <folder>             : output folder, by default ./out
         --raw                   : output raw data
 
         --ratio                 : ratio CDS/UTR min 80% de CDS
@@ -46,12 +46,8 @@ Gmove reads **GFF2** and **GFF3** files. It recognizes some specific tags at col
 
     You should sort your files : the exon with the smaller position on the genome should be at the first line of the transcript. In this way Gmove can reconstruct the transcript/protein by just reading once the files. So be careful, when the strand is "-", Gmove needs to read the last exon first for a corresponding transcript/protein. 
     
-    for a GFF2 file : `sort -k1,1 -k10,10 -k4,4n rna.gff > sortRna.gff`
-    
-    for a GFF3 file :  `sort -k1,1 -k9,9 -k4,4n rna.gff > sortRna.gff`
-
 # Output
-The script will output a GFF or GTF file. 
+The script will output a GFF or GTF file. If the `--raw`option is used, all of models will be output in a folder `raw/`. The selected models are output in a folder `filter/`
 
 # Installation
 Install the dependencies
