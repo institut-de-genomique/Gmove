@@ -55,6 +55,8 @@ class GeneModelList{
 		void fusionCluster(s32 formerCluster, s32 newCluster, map<s32,list<GeneModel*> >& mapClusterModel);
 		void deleteSmallCDS(s32 min_size_cds);
 		void ratioCdsUtr();
+		s32 printOut(ofstream& ,bool);
+		void filter(bool,s32,char* longReadsFilename);
 
 
 		/* Accessors */

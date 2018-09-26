@@ -38,8 +38,8 @@ class SSRContigList {
   static s32 MINSIZEINTRON;
   static s32 MAXSIZEINTRON;
   static s32 MINCOVWORD2ORIENTATE;
-  static s32 REDUCEEXONLIST;
-  static s32 VERBOSE;
+ // static s32 REDUCEEXONLIST;
+ // static s32 VERBOSE;
   
   /* Constructors and Destructors*/
   SSRContigList() {}

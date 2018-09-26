@@ -15,6 +15,7 @@ s32 SSRContig::EXTEND;
 s32 SSRContig::MINSIZEEXON;
 s32 SSRContig::MINCOVSPLICESITES;
 s32 SSRContig::MINNBWORD;
+s32 SSRContig::VERBOSE;
 
 
 // to build a list of potential exons from the enlarged sequence of the covtig
@@ -61,10 +62,8 @@ vector<string>::iterator it;
     	  SSRContig* exon = new SSRContig(_seqname, start, stop, _coverage, _wholeseq,strand);//FIXME memory leak
     	  exon->setMaster(this);
     	  for(map<s32,bool>::iterator itMap = this->getIdTranscrit().begin() ; itMap != this->getIdTranscrit().end(); ++itMap){
-
     		  exon->setIdTranscrit(itMap->first);
     	  }
-
     	  _exons.push_back(exon);
       }
     }
@@ -80,7 +79,6 @@ vector<string>::iterator it;
    		  exonSelf->setIdTranscrit(itMap->first);
       	  }
   exonSelf->setMaster(this);
-//  exonSelf->setTag(_tag);
   _exons.push_back(exonSelf);
   }
   /* sorts all exons according to distance with covtig */

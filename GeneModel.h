@@ -73,6 +73,7 @@ class GeneModel {
     for(list<s32>::iterator itP = _path.begin() ; itP != _path.end() ; itP++){
     	_exons.push_back(this->exon(*itP));
     	_model_size += this->exon(*itP)->size();
+    //	cout <<"exon " << this->exon(*itP)->start() << " "<< this->exon(*itP)->end()<<endl;
     	if(this->exon(*itP)->getPosNegID()) {
     		ostringstream oss;
     		oss << this->exon(*itP)->seqName() << "@" << this->exon(*itP)->start() << "@" << this->exon(*itP)->end();
@@ -93,6 +94,7 @@ class GeneModel {
     	_strand = (*_exons.begin())->strand();
     	_seqname = (*_exons.begin())->seqName();
     }
+ //   cout << "model size " << _model_size << endl;
   }
   
   ~GeneModel() { }

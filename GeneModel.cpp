@@ -21,68 +21,77 @@ void GeneModel::printAnnot(ofstream &forf, bool format) {
 // GFF3 file outputing: format fitting our in-house needs
 void GeneModel::formatGFF (ofstream &forf) {
 	string strdSt = (_strand < 0) ? "-" : "+";
-  
-  s32 debCDS = _cds.second, finCDS = _cds.first;
-  if (_cds.first < _cds.second) {  
-    debCDS = _cds.first; 
-    finCDS = _cds.second;
-  }
 
-  s32 debTrans = (*_exons.begin())->start();
+	s32 debCDS = _cds.second, finCDS = _cds.first;
+	if (_cds.first < _cds.second) {
+		debCDS = _cds.first;
+		finCDS = _cds.second;
+	}
 
-  s32 finTrans = (*(--_exons.end()))->end();
-  if (_strand >= 0) {
-    debTrans -= _5pXL;
-    finTrans += _3pXL;
-  }
-  else if (_strand < 0) {
-    finTrans += _5pXL;
-    debTrans -= _3pXL;
-  }
-  
-  string argCDS;
-  if(this->containCDS()) {
+	s32 debTrans = (*_exons.begin())->start();
+	s32 finTrans = (*(--_exons.end()))->end();
+
+	if (_strand >= 0) {
+		if(_start_found == 0)
+			debTrans = debCDS;
+		else if (_stop_found == 0)
+			finTrans = finCDS;
+
+		debTrans -= _5pXL;
+		finTrans += _3pXL;
+	}
+	else if (_strand < 0) {
+		if(_start_found == 0)
+			finTrans = finCDS;
+		else if (_stop_found == 0)
+			debTrans = debCDS;
+
+		finTrans += _5pXL;
+		debTrans -= _3pXL;
+	}
+	string argCDS;
     ostringstream oss;
-    oss << ";start="<<_start_found<< ";stop=" << _stop_found << ";cds_size=" << _cds_size<<";model_size="<<_model_size+_5pXL+_3pXL;
+    oss << ";start="<<_start_found<< ";stop=" << _stop_found << ";cds_size=" << _cds_size<<";model_size="<<_model_size+_5pXL+_3pXL<<";exons="<<_exons.size();
     argCDS = oss.str();	  
-  }
-
-  forf << _seqname << "\tGmove\tmRNA\t" << debTrans << "\t" << finTrans << "\t.\t" << strdSt << "\t.\t" << "ID=mRNA."
+    forf << _seqname << "\tGmove\tmRNA\t" << debTrans << "\t" << finTrans << "\t.\t" << strdSt << "\t.\t" << "ID=mRNA."
        << _seqname << "." << _num_cc << "." << _indMod
        << ";Name=mRNA." << _seqname << "." << _num_cc << "." << _indMod
        << argCDS << endl;
 
-  for (TSSRList::iterator it = _exons.begin(); it != _exons.end(); it++){
-    s32 debExon = (*it)->start();
-    s32 finExon = (*it)->end();
-    if (_strand >=0) {
-      if (it == _exons.begin()) {debExon -= _5pXL;}
-      if (it == --_exons.end()) {finExon += _3pXL;}
-    }
-    else if(_strand < 0) {
-      if (it == --_exons.end()) {finExon += _5pXL;}
-      if (it == _exons.begin()) {debExon -= _3pXL;}
-    }
-    if(this->containCDS()) {
-      if( finCDS < debExon || debCDS > finExon ) {
+    for (TSSRList::iterator it = _exons.begin(); it != _exons.end(); it++){
+    	s32 debExon = (*it)->start();
+    	s32 finExon = (*it)->end()  ;
+    	if (_strand >=0) {
+    		if (it == _exons.begin()) {debExon -= _5pXL;}
+    		if (it == --_exons.end()) {finExon += _3pXL;}
+    	}
+    	else if(_strand < 0) {
+    		if (it == --_exons.end()) {finExon += _5pXL;}
+    		if (it == _exons.begin()) {debExon -= _3pXL;}
+    	}
+    	if( finCDS < debExon || debCDS > finExon ) {
     	  forf << _seqname << "\tGmove\tUTR\t" << debExon << "\t" << finExon << "\t.\t" << strdSt << "\t.\t" << "Parent=mRNA."
     			  << _seqname << "." << _num_cc << "." << _indMod << endl;
-      }
-
-      else {
-    	  s32 end = (finCDS < finExon) ? finCDS : finExon;
-			  s32 begin = (debCDS < debExon) ? debExon : debCDS;
-		if(begin != debExon)
-		  forf << _seqname << "\tGmove\tUTR\t" << debExon << "\t" << begin-1 << "\t.\t" << strdSt << "\t.\t" << "Parent=mRNA."
-			   << _seqname << "." << _num_cc << "." << _indMod << endl;
-		forf << _seqname << "\tGmove\tCDS\t" << begin << "\t" << end << "\t.\t" << strdSt << "\t.\t" << "Parent=mRNA."
-			 << _seqname << "." << _num_cc << "." << _indMod << endl;
-		if(end != finExon)
-		  forf << _seqname << "\tGmove\tUTR\t" << end+1 << "\t" << finExon << "\t.\t" << strdSt << "\t.\t" << "Parent=mRNA."
-			   << _seqname << "." << _num_cc << "." << _indMod << endl;
-      }
+    	}
+    	else {
+    		s32 end = (finCDS < finExon) ? finCDS : finExon;
+			s32 begin = (debCDS < debExon) ? debExon : debCDS;
+			if(begin != debExon){
+				if( (_strand > 0 && _start_found) || (_strand < 0 && _stop_found ) ){
+						forf << _seqname << "\tGmove\tUTR\t" << debExon << "\t" << begin-1 << "\t.\t" << strdSt << "\t.\t" << "Parent=mRNA."
+															<< _seqname << "." << _num_cc << "." << _indMod << endl;
+				}
+			}
+			forf << _seqname << "\tGmove\tCDS\t" << begin << "\t" << end << "\t.\t" << strdSt << "\t.\t" << "Parent=mRNA."
+				<< _seqname << "." << _num_cc << "." << _indMod << endl;
+				if(end != finExon){
+					if( (_strand > 0 && _stop_found) || (_strand < 0 && _start_found) ){
+						forf << _seqname << "\tGmove\tUTR\t" << end+1 << "\t" << finExon << "\t.\t" << strdSt << "\t.\t" << "Parent=mRNA."
+										<< _seqname << "." << _num_cc << "." << _indMod << endl;
+					}
+				}
+    	}
     }
-  }
 }
 
 //** GTF file outputing **//
@@ -167,7 +176,9 @@ bool GeneModel::findORF(const map<string, s32>& protPhaseCoord) {
 	  }
   }
   s32 phaseScore_fwd = this->selectORF(protPhaseCoord); // selectORF update _cds
+//  cout << " select orf based in protPhaseCoord " << phaseScore_fwd << endl;
   if( (_exons.size() == 1) || GeneModel::UNORIENTED ){
+//	  cout << "if( (_exons.size() == 1) || GeneModel::UNORIENTED )"<<endl;
     s32 _3pXL_fwd =_3pXL, _5pXL_fwd=_5pXL;
   //  _3pXL = 0;//XXX Why ??
   //  _5pXL = 0;
@@ -176,6 +187,7 @@ bool GeneModel::findORF(const map<string, s32>& protPhaseCoord) {
     
     s32 phaseScore_rev = 0;
     if(_exons.front()->strand() == SSRContig::UNKNOWN || oriented == false){
+  //  	cout << "if(_exons.front()->strand() == SSRContig::UNKNOWN || oriented == false)"<<endl;
     	(_exons.front())->setStrand(SSRContig::REVERSE);
     	     _strand = (_exons.front())->strand();
     	    phaseScore_rev = this->selectORF(protPhaseCoord); // comparison between fwd and rev models to choose the best one
@@ -188,24 +200,29 @@ bool GeneModel::findORF(const map<string, s32>& protPhaseCoord) {
 		  _start_found = start_found;
 		  _stop_found = stop_found;
 		  _3pXL = _3pXL_fwd;
-		  _5pXL = _5pXL_fwd;
+		  _5pXL = _5pXL_fwd;		  
+	//	  cout << "cds " << _cds.first << " " << _cds.second << " cds_size " << _cds_size << endl;
+
 		}
     }
   } 
   /* second pass if no ORF was found using the proteic mapping phase information --> information not used anymore */
   if(_ref_score && _cds_size==0){
-    _ref_score = 0;
+	//  cout << " if(_ref_score && _cds_size==0)"<<endl;
+  _ref_score = 0;
     if( (_exons.size() == 1) || GeneModel::UNORIENTED )
     	  if(_exons.front()->strand() == SSRContig::UNKNOWN)
     		  (_exons.front())->setStrand(SSRContig::FORWARD);
     this->selectORF();
     if( (_exons.size() == 1) || GeneModel::UNORIENTED ){
+ //   	cout << " if( (_exons.size() == 1) || GeneModel::UNORIENTED )"<<endl;
       s32 _3pXL_fwd =_3pXL, _5pXL_fwd=_5pXL;
 //      _3pXL = 0; //XXX Why ?
 //      _5pXL = 0;
       pair<s32, s32> cds_forward = _cds;
       s32 cds_forward_len = _cds_size, start_found = _start_found, stop_found = _stop_found;
       if(_exons.front()->strand() == SSRContig::UNKNOWN){
+ //   	  cout <<" if(_exons.front()->strand() == SSRContig::UNKNOWN)"<<endl;
     	  _3pXL = 0;
           _5pXL = 0;
     	  (_exons.front())->setStrand(SSRContig::REVERSE);
@@ -214,6 +231,7 @@ bool GeneModel::findORF(const map<string, s32>& protPhaseCoord) {
       }
 
       if(_cds_size < cds_forward_len){
+  //  	  cout<<" if(_cds_size < cds_forward_len)"<<endl;
 		(_exons.front())->setStrand(SSRContig::FORWARD);
 		_strand = (_exons.front())->strand();
 		_cds = cds_forward;
@@ -222,11 +240,17 @@ bool GeneModel::findORF(const map<string, s32>& protPhaseCoord) {
 		_stop_found = stop_found;
 		_3pXL = _3pXL_fwd;
 		_5pXL = _5pXL_fwd;
+//		 cout << "cds " << _cds.first << " " << _cds.second << " cds_size " << _cds_size << endl;
       }
     }
   }
+
   if(_cds.first && _cds.second ) { // if a cds exist
     this->mapORF();
+    if(_cds_size %3 != 0){
+    	  cerr << "Error cds size is not %3 " << _cds_size<< " start found " << _start_found << " stop_found " << _stop_found << endl;
+    	  exit(1);
+      }
     return true;
   }
   return false;
@@ -241,8 +265,10 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
   /* recreate the mRNA sequence of the model and calculate the reference score for phase information */
   for(TSSRList::iterator it = _exons.begin() ; it != _exons.end(); it++) {
     if(!strand) { strand = (*it)->strand(); }
+ //   cout << "selectORf pos "<< (*it)->start() << " "<< (*it)->end() << endl;
     exon_seq = (*it)->getSeq();
     mrna_seq += exon_seq;
+ //   cout << "mra_seq length " << mrna_seq.size() << endl;
     if(!_ref_score) {
       for(s32 cursor=(*it)->start(); cursor<=(*it)->end();cursor++){
     	  mrna_coord++;
@@ -303,15 +329,27 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
   vector<s32>::iterator itStart, itStop;
   // try to find a full orf
   for (s32 i = 0 ; i < 3 ; i++) {
+//	  cout <<i << " full ORF ";
     bool findStop = false;
     for ( itStop = stop.begin() ; itStop < stop.end(); itStop++ ) {
       s32 pos = *itStop;
-      if((pos-i)%3 == 0) { findStop = true; break; }
+      if((pos-i)%3 == 0) {
+    	  findStop = true;
+      break; }
     }
     if(!findStop) {
-      pair<s32,s32> orf_begin_end = make_pair(i+1, (s32)mrna_seq.length());
+  //  	cout <<"no stop in phase " << endl;
+    	s32 start = i+1;
+    	s32 end = (s32)mrna_seq.length();
+    	while ((end-start +1)%3 != 0 ){
+    		end = end-1;
+    	}
+ //   	cout << "start " << start << " end " << end << endl;
+      pair<s32,s32> orf_begin_end = make_pair(start,end);
       s32 len_begin_end = orf_begin_end.second - orf_begin_end.first + 1;
+ //     cout << "len_begin_end "<< len_begin_end << endl;
       if(_ref_score) {
+ //   	  cout <<"enter in _ref_score " << endl;
     	  s32 score_begin_end = this->getPhaseScore(orf_begin_end, strand, mrna_seq.length(), modelPhaseCoord);
     	  if(score_begin_end > phaseScore) {
     		  phaseScore = score_begin_end;
@@ -328,12 +366,15 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
     	  _start_found = 0;
       }
     }
+ //   cout <<"phase score " << phaseScore<< "cdslen "<< cdslen << endl;
   }
+
 
   // find the longest M->* orf
   pair<s32,s32> orf_M_stop;
   s32 len_M_stop;
   if(_ref_score) {
+//	  cout <<"M * orf ";
     s32 score_M_stop;
     orf_M_stop = this->bestORF(start, stop, strand, mrna_seq.length(), score_M_stop,modelPhaseCoord);
     len_M_stop = orf_M_stop.second - orf_M_stop.first + 1;
@@ -344,6 +385,7 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
     	_stop_found = 1;
     	_start_found = 1;
     }
+ //   cout << "phase score "<< phaseScore << "cdslen "<< cdslen << endl;
   }
   
   else{
@@ -359,7 +401,7 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
   }
   // find the longest M->end orf
   vector<s32> allStop(stop);
-  allStop.push_back(mrna_seq.length()-3);
+  allStop.push_back(mrna_seq.length()-3); //FIXME Why 3, 4 , 5 ?
   allStop.push_back(mrna_seq.length()-4);
   allStop.push_back(mrna_seq.length()-5);
   std::sort(allStop.begin(), allStop.end());
@@ -367,6 +409,7 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
   s32 len_M_end;
 
   if(_ref_score) {
+//	  cout << "M end "<<endl;
     s32 score_M_end;
     orf_M_end = this->bestORF(start, allStop, strand, mrna_seq.length(), score_M_end, modelPhaseCoord);
     len_M_end = orf_M_end.second - orf_M_end.first + 1;
@@ -377,6 +420,7 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
       _start_found = 1;
       _stop_found = 0;
     }
+//    cout <<"phaseScore " << phaseScore << " cdslen " << cdslen << endl;
   }
   else {
     orf_M_end = this->longestORF(start, allStop);
@@ -384,12 +428,10 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
     if(len_M_end > cdslen) {
       cds = orf_M_end;
       cdslen = len_M_end;
-
       _start_found = 1;
       _stop_found = 0;
     }
   }
-  
   // find the longest begin->* on a different frame that the existing longest cds, if the begin->* segment is at least 64bp longer
   vector<s32> allStart(start);
   for(s32 i = 0; i < 3; i++) if((i-cds.first+1)%3 !=0) allStart.push_back(i);
@@ -397,9 +439,10 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
   pair<s32,s32> orf_begin_stop;
   s32 len_begin_stop; 
 
-  if(_ref_score) {//XXX Is it possible to have that, I never find it ?
+  if(_ref_score) {
+//	  cout << "begin * " << endl;
     s32 score_begin_stop;
-    orf_begin_stop = this->bestORF(allStart, allStop, strand, mrna_seq.length(), score_begin_stop, modelPhaseCoord);//XXX I replace stop by allStop
+    orf_begin_stop = this->bestORF(allStart, allStop, strand, mrna_seq.length(), score_begin_stop, modelPhaseCoord);
     len_begin_stop = orf_begin_stop.second - orf_begin_stop.first + 1;
     if(score_begin_stop > phaseScore){
       phaseScore = score_begin_stop;
@@ -407,9 +450,8 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
       cdslen = len_begin_stop;
       _start_found = 0;
       _stop_found = 1;
-      cout << "I find it in selectORF !!" << endl;
-      exit(1);
     }
+  //  cout << "phaseScore " << phaseScore << " cdslen " << cdslen <<endl;
   }
   
   else {
@@ -428,13 +470,14 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
   for (frame = 0; frame < 3; frame++){
     if ((cds.first-1-frame)%3==0)
     	break;
+
   }
-  
   string mrna_xlarge, mrna_3p, mrna_5p;
   string* whole_seq = (*_exons.begin())->getWholeSeq();
   s32 start_xlarge, size_xlarge; 
   s32 newStopPos = -1, newStartPos = -1;
   
+
   if (_stop_found == 0 && cds!=make_pair(0,0)) {
     //obtain 3' extended sequence
     if (strand >= 0) {
@@ -465,7 +508,6 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
     	  loc = mrna_xlarge.find(*it, loc+1);
       }
     }
-    
     if(newStopPos != -1) {
       cds = make_pair(cds.first, newStopPos + 3);
       cdslen = cds.second - cds.first + 1;
@@ -473,6 +515,8 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
       _3pXL = newStopPos + 3 - (s32)mrna_seq.length();
     }
   }
+
+
   // THIRD STEP IF NO START WAS FOUND, TAKE THE CLOSEST ONE TO THE BEGINNING OF THE CDS IN THE LIMIT OF (-_WINDOW,+_WINDOW)
   if(_start_found == 0 && cds!=make_pair(0,0)) {
     s32 distance = -1, distemp = 0;
@@ -512,21 +556,20 @@ s32 GeneModel::selectORF (const map<string, s32>& protPhaseCoord) {
 
     // find START codon
     for ( it=startC.begin() ; it < startC.end(); it++ ) {
-      string::size_type loc = mrna_xlarge.find(*it, lastStop);
-      while( loc != string::npos) {
-	// check this is the right ORF 
-    	  if((((s32)loc-(s32)mrna_5p.length()-frame)%3==0)){
-	  // check the START is the closest to the initial cds_start
-    		  distemp = abs((int)((s32)mrna_5p.length()+cds.first-1-(s32)loc));
-    		  if(distemp<=_window && (distemp < distance || distance == -1)) {
-    			  distance = distemp;
-    			  newStartPos = (s32)loc; // we only keep the closest one
-    		  }
-    	  }
-    	  loc = mrna_xlarge.find(*it, loc+1);
-      }
+		string::size_type loc = mrna_xlarge.find(*it, lastStop);
+		while( loc != string::npos) {
+			// check this is the right ORF
+			if((((s32)loc-(s32)mrna_5p.length()-frame)%3==0)){
+				// check the START is the closest to the initial cds_start
+				distemp = abs((int)((s32)mrna_5p.length()+cds.first-1-(s32)loc));
+				if(distemp<=_window && (distemp < distance || distance == -1)) {
+					distance = distemp;
+					newStartPos = (s32)loc; // we only keep the closest one
+				}
+			}
+			loc = mrna_xlarge.find(*it, loc+1);
+		}
     }
-
     if (newStartPos != -1) {
       _start_found = 1;
       if(newStartPos+1 <= (s32)mrna_5p.length()) {  //the new START codon was found 5' of the old beginning of CDS
@@ -561,17 +604,19 @@ s32 GeneModel::getPhaseScore(pair<s32, s32> orf, s32 strand, s32 mrna_len, const
     map<string, s32>::const_iterator it = modelPhaseCoord.find(key);
     if(it != modelPhaseCoord.end() && it->second){
       s32 phase_diff;
-      if(strand>0) phase_diff = (j - orf.first)%3 +1 - it->second;
+      if(strand>0) phase_diff = (j - orf.first)%3 +1 - it->second;//XXX meme operation sur les deux lignes. Pourquoi on fait le if/else ??
       else {phase_diff = (j - orf.first)%3 +1 + it->second; }
       if(!phase_diff) score++;
+
     }
   }
+//  cout<< " score " << score << endl;
   return score;
 }
 
 // to find the longest ORF between all combinaisons of start and stop
 pair<s32,s32> GeneModel::longestORF(vector<s32> lStart, vector<s32> lStop) {
-	std::clock_t c_start = std::clock();
+//	std::clock_t c_start = std::clock();
 	vector<s32>::iterator itStart, itStop;
 	pair<s32,s32> orf;
 	s32 max_len = 0;
@@ -587,8 +632,8 @@ pair<s32,s32> GeneModel::longestORF(vector<s32> lStart, vector<s32> lStop) {
 			itStop = lStop.end();
 		}
 	}
-	std::clock_t c_end = std::clock();
-	 if(PRINTTIME)   cout << " time longestORF " <<  1000.0 * (c_end-c_start) / CLOCKS_PER_SEC << endl;
+//	std::clock_t c_end = std::clock();
+//	 if(SSRContig::VERBOSE)   cout << " time longestORF " <<  1000.0 * (c_end-c_start) / CLOCKS_PER_SEC << endl;
 	return orf;
 }
 
@@ -599,14 +644,11 @@ pair<s32,s32> GeneModel::bestORF(vector<s32> lStart, vector<s32> lStop, s32 stra
 	 pair<s32,s32> orf, tmp_orf;
 	 s32 max_score=0;
 	 for ( itStart = lStart.begin() ; itStart < lStart.end(); itStart++ ) {
-
 		 for ( itStop = lStop.begin() ; itStop < lStop.end(); itStop++ ) {
-
 			 s32 pstart = *itStart, pstop = *itStop;
 			 s32 cds_len = pstop - pstart + 1 + 2;
 			 if(cds_len <=0 || cds_len%3 != 0) { continue; }
 			 tmp_orf = make_pair(pstart + 1, pstop + 3);
-
 			 score = this->getPhaseScore(tmp_orf, strand, mrna_len, modelPhaseCoord);
 			 if(score > max_score) {
 				 orf = tmp_orf;
@@ -617,12 +659,12 @@ pair<s32,s32> GeneModel::bestORF(vector<s32> lStart, vector<s32> lStop, s32 stra
 	 }
 	 score = max_score;
 	 std::clock_t c_end = std::clock();
-	 if(PRINTTIME) cout << " time bestORF " <<  1000.0 * (c_end-c_start) / CLOCKS_PER_SEC << endl;
+	 if(SSRContig::VERBOSE) cout << " time bestORF " <<  1000.0 * (c_end-c_start) / CLOCKS_PER_SEC << endl;
 	 return orf;
 }
 
 // to recalculate the absolute coordinate of the ORF on the genomic sequence
-void GeneModel::mapORF() {//XXX Why we need to recalculate ?
+void GeneModel::mapORF() {
   s32 debOrf = _cds.first, finOrf = _cds.second;
   s32 posEp=0; // exonic sequence pos
   s32 posG=0; // genome position
@@ -658,6 +700,7 @@ void GeneModel::mapORF() {//XXX Why we need to recalculate ?
     	  posEp++;
       }
     }
+ //   cout << "orfgout " << orfgout << " orfgin " << orfgin << endl;
       _cds = make_pair(orfgout,orfgin);
     if(!this->containCDS())
     	cerr << "error in mapORF _cds.first " << _cds.first << " _cds.second "<< _cds.second <<endl;//FIXME THAT APPEND SOMETIMES !!
@@ -698,14 +741,14 @@ bool GeneModel::cdsIsMono(){
 	else
 		return false;
 }
-list<pair<s32,s32> > GeneModel::getExonsCds(){
+list<pair<s32,s32> > GeneModel::getExonsCds(){//FIXME Error in getExonsCds ! when there is UTR and CDS on the same exon !
 
 	list<pair<s32,s32> > exonCDS1;
 	s32 debCDS1 = _cds.second, finCDS1 = _cds.first;
 	if (_cds.first < _cds.second) {
 	   debCDS1 = _cds.first;
 	   finCDS1 = _cds.second;
-	 }
+	}
 	for (TSSRList::iterator it = _exons.begin(); it != _exons.end(); ++it){
 		if(_exons.size()==1 ){
 			exonCDS1.push_back(_cds);
@@ -723,6 +766,7 @@ list<pair<s32,s32> > GeneModel::getExonsCds(){
 			else {
 				s32 end = (finCDS1 < finExon1) ? finCDS1 : finExon1;
 				s32 begin = (debCDS1 < debExon1) ? debExon1 : debCDS1;
+			//	cout << "exon CDS " << begin << " " << end << endl;
 				exonCDS1.push_back(make_pair(begin,end));
 			}
 		}
@@ -740,12 +784,11 @@ void GeneModel::keepModel(map<string,GeneModel>& mapGeneModel){
 	  }
 	  oss << _seqname;
 	for (TSSRList::iterator it = _exons.begin(); it != _exons.end(); it++){
-
 	    s32 debExon = (*it)->start();
 	    s32 finExon = (*it)->end();
 	    if (_strand >=0) {
-	    if (it == _exons.begin()) debExon -= _5pXL;
-	    if (it == --_exons.end()) finExon += _3pXL;
+	    	if (it == _exons.begin()) debExon -= _5pXL;
+	    	if (it == --_exons.end()) finExon += _3pXL;
 	    }
 	    else if(_strand < 0) {
 	      if (it == --_exons.end()) finExon += _5pXL;
@@ -825,6 +868,10 @@ bool GeneModel::overlapOrf(GeneModel model2){//overlap cds from model
 
 // to print a covtig's information
 ostream& operator<<(ostream& ostr, const GeneModel& g) {
-  return ostr<<g.getSeqname()<< " " << g.getNumCC() <<" " << g.getID() << " " << g.getCdsSize();
-}
+   return ostr<<g.getSeqname()<< " " << g.getNumCC() <<" " << g.getID() << " " << g.getCdsSize();
+// for (TSSRList::iterator it = g.getExons().begin(); it != g.getExons().end(); it++){
+//	ostr <<"exon " <<  (*it)->start() << " " << (*it)->end() <<endl;
+ //}
+// return ostr;
+ }
 

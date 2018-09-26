@@ -77,6 +77,7 @@ class SSRContig {
   static s32 MINCOVSPLICESITES;
   static s32 MINCOVWORD2ORIENTATE;
   static s32 MINNBWORD;
+  static s32 VERBOSE;
   
   static bool startposSort(const SSRContig*, const SSRContig*);
   static bool endposSort(const SSRContig*, const SSRContig*);

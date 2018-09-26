@@ -173,24 +173,33 @@ class NetEx {
 
   list<list<int> > allPathsFinder(list<s32>&);
 
-  s32 nodeToVertex(s32 idNode);
-  void bfs(s32 startId,map<s32,list < list<s32> > >& paths , map<s32,s32> vertexToBGL,s32 currentColor,list<s32>& colorNotAllowed,std::queue<s32> & Qbfs  );
-  void dfs(s32 startId,map<s32,list < list<s32> > >& paths , map<s32,s32> vertexToBGL,s32,list<s32> &,std::stack<s32> & );
+ // s32 nodeToVertex(s32 idNode);
+  void bfs(s32 startId,map<s32,list < list<s32> > >& paths , s32 currentColor,set<s32>& colorNotAllowed,std::queue<s32> & Qbfs,set<s32> visited  );
+  void dfs(s32 startId,map<s32,list < list<s32> > >& paths , s32,list<s32> &,std::stack<s32> & );
   void printMap (map<s32,list < list<s32> > > mapP);
+  void printAllNodes(list<s32> comp); //XXX Just for test
   list<list<s32> > PathsFinderWithCondition(list<s32> comp);
-  void searchAllColor(s32 idSource,map<s32,list < list<s32> > >& predM,list<s32>& colorNotAllowed);
-  map<s32,s32> mapIdsVertextoBGL();
+  list<list<s32> > pathWithHigherWeight(list<s32>& comp);
+  void initDijkstra(list<s32>comp,s32 startNode,map<s32,s32>& distance,map<s32,s32>&);
+  s32 findMinDist(list<s32> Q, map<s32,s32>distance);
+  list<s32> shortestPath(s32 stop,s32 start,map<s32,s32> previousPath);
+  void updateDist(s32 s1, s32 s2,map<s32,s32>& distance, map<s32,s32>& previousNode);
+  void searchAllColor(s32 idSource,map<s32,list < list<s32> > >& predM,set<s32>& colorNotAllowed,set<s32>&);
+ // map<s32,s32> mapIdsVertextoBGL();
   void countVerticesAndEgdes(list<s32>&, s32&, s32&);
   list<s32> sourcesNodes(list<s32>comp);
   list<s32> endNodes(list<s32> comp);
   s32 count_allPaths(list<s32>&);
   s32 count_paths(s32, map<s32, s32>&);
   void compute_paths(s32, list<s32>&, map<s32, list<list<s32> > >&);
-  void graphOut (string name);
+  void graphOut (string directory, string name);
   s32 nbCycle();
   void tagExons(map<string,s32>&,map<s32,TSSRList>&,map<s32,TSSRList>&,TSSRList& );
+  void updateWeightStartNode(s32 , s32 );
+  void updateWeightEndNode(s32, s32 );
   void cleanGraph();
   void deleteNode();
+  void synchronisedId();
   void simplifyBigGraph(list<s32>,s32);
 };
 

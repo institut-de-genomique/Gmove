@@ -15,13 +15,10 @@ GffRecord::GffRecord(string line) {
 	  string tmp;
 	  stringstream ss,ss2;
 	  vector<string> tmpV;
-	//  checkFormatGff(fileName );
-	//  fstream file;
-	//  file.open(fileName, ios::in);
-	   ss<< line ;
-	   while(std::getline(ss, tmp, '\t')) {
+	  ss<< line ;
+	  while(std::getline(ss, tmp, '\t')) {
 	       tmpV.push_back(tmp);
-	   }
+	  }
 
 	   _seqname = tmpV[0];
 	   _method = tmpV[1];
@@ -33,16 +30,13 @@ GffRecord::GffRecord(string line) {
 	   _phase = tmpV[7];
 	   _attribute = tmpV[8];
   	   prepareAttribute(_attribute);
+  	   _color=0;
 
  }
 
 
 
 void GffRecord::prepareAttribute(string& attribute){
-	//TODO prepare attribute. Extract ID different if gff2 or gff3
-	// detecter si on est en gff2 ou gff3
-	// detecter si tag ID Parent est présent sinon récupérer le premier Id
-
 	std::replace( attribute.begin(), attribute.end(), '=', ' ');
 	string delimiter;
 	size_t pos = 0;
@@ -68,23 +62,6 @@ void GffRecord::prepareAttribute(string& attribute){
 		attribute.erase(pos,attribute.length());
 	}
 }
-
-/*
-void GffRecord::split(string s, string delimiter){
-	size_t pos=0;
-	list <string> tokens;
-	pos = s.find(delimiter);
-	//while ((pos = s.find(delimiter)) != string::npos) {
-		s32 start= pos + delimiter.length();
-
-				tokens.push_back(s.substr(start, s.length()));
-	//			line.erase(0, pos + delimiter.length());
-	//		}
-	for(list<string>::iterator itList = tokens.begin();itList!= tokens.end();++itList){
-		cout << "tokens " << *itList << endl;
-	}
-}
-*/
 
 // to print the GffRecord
 ostream& operator<<(ostream& ostr, const GffRecord& r) {

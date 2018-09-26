@@ -45,7 +45,7 @@ protected:
 public:
 	/* Constructors and Destructors*/
 	SSRContigLists() { /*_nbContigs=0;*/ }
-	SSRContigLists(GffRecordList , map<string, string>& ) ;
+	SSRContigLists(GffRecordList listRecord, map<string, string>& sequences) ;
 		~SSRContigLists() {
 		for(TcontigLists::iterator itCtg =  _contigs.begin(); itCtg != _contigs.end();++itCtg){
 			delete itCtg->second;

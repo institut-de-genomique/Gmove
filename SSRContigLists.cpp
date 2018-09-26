@@ -13,31 +13,28 @@ using namespace std;
 //using namespace seqan;
 
 // class constructor 
-//TODO simplifier pas besoin de pair<GffRecord,string>
 SSRContigLists::SSRContigLists(GffRecordList listRecord, map<string, string>& sequences) {
   string seqname, tagPrevious, exonIdPrevious;
   s32 start, end, tmpEnd;
   map<string,SSRContig*> seenCovtigs;
   f8 coverage;
-  s32 idTranscrit = 0;
+//  s32 idTranscrit = 1;
   s32 startPrevious = 0, endPrevious = 0;
   Tstrand strand;
   map<s32,TSSRList*> mapTranscrit;
 
   GffRecordL* allRecords = listRecord.getRecords();
+
   for(GffRecordL::iterator itRecord = allRecords->begin() ; itRecord != allRecords->end(); ++itRecord){
 
 	  GffRecord* record = *itRecord;
-//	seqname.erase();
-    //assign(seqname,itRecord->first.ref);
 	  seqname = record->getSeqName();
-    string currentId = record->getAttribute();
-    if(seqname.empty()) { break; }
-    // assign(currentId,itRecord->first.tagValues[0]);
-     if(exonIdPrevious != currentId && !exonIdPrevious.empty()){
-     		  ++idTranscrit;
-     	}
-  //   cout <<"blop exonIdPrevious "<<  exonIdPrevious << endl;
+	  string currentId = record->getAttribute();
+
+	  if(seqname.empty()) { break; }
+  //   if(exonIdPrevious != currentId && !exonIdPrevious.empty())
+   //  		  ++idTranscrit;
+
     start = record->getStart(); //+ 1;
     end = record->getEnd();
     coverage = 0;//TODO change coverage of the exon ?
@@ -50,53 +47,59 @@ SSRContigLists::SSRContigLists(GffRecordList listRecord, map<string, string>& se
       exit(2);
     }
     string* seq = &itSeq->second;
-    TcontigLists::iterator itContigs = _contigs.find(seqname);
-    if (itContigs == _contigs.end()) {
-      SSRContigList* liste = new SSRContigList();
-      itContigs = _contigs.insert(make_pair(seqname, liste)).first;
-    }
-    //TODO else increase coverage exon
+
+
     SSRContig* ctg = new SSRContig(seqname, start, end, coverage, seq,strand);
-    ctg->setIdTranscrit(idTranscrit);
+  //  ctg->setIdTranscrit(idTranscrit);
+    s32 color = record->getColor();
+    ctg->setIdTranscrit(color);
     ostringstream oss;
     oss << seqname << "@"<< start << "@"<<end << "@"<<strand;
     string key = oss.str();
-    if(seenCovtigs.find(key) == seenCovtigs.end()){// The covtig doesnt exist
-  //  	_nbContigs++;
+    map<string,SSRContig*>::iterator itSeenCovtigs = seenCovtigs.find(key);
+    if( itSeenCovtigs == seenCovtigs.end()){// The covtig doesnt exist
     	if(end-start+1 > SSRContig::MINSIZEEXON){
+    		  TcontigLists::iterator itContigs = _contigs.find(seqname);
+    		    if (itContigs == _contigs.end()) {
+    		      SSRContigList* liste = new SSRContigList();
+    		      itContigs = _contigs.insert(make_pair(seqname, liste)).first;
+    		    }
     		(itContigs->second)->push_back(ctg); // it->second = TSSRList _contigs
-    		map<s32,list<string> >::iterator itTranscrit = _transcrit.find(idTranscrit);
+    		map<s32,list<string> >::iterator itTranscrit = _transcrit.find(color);
     		if(itTranscrit != _transcrit.end()){
     			itTranscrit->second.push_back(key);
     		}
     		else{
     			list<string> tmpList;
     			tmpList.push_back(key);
-    			_transcrit.insert(make_pair(idTranscrit,tmpList));
+    			_transcrit.insert(make_pair(color,tmpList));
     		}
+
+    		seenCovtigs.insert(make_pair(key,((itContigs->second)->back())));
     	}
-    	seenCovtigs.insert(make_pair(key,((itContigs->second)->back())));
+   // 	else
+   // 		cout << "exon too small "<< endl;
+
     }
     else{
-    	(seenCovtigs.find(key)->second)->setIdTranscrit(idTranscrit);
-    	map<s32,list<string> >::iterator itTranscrit = _transcrit.find(idTranscrit);
+    	(itSeenCovtigs->second)->setIdTranscrit(color);
+    	map<s32,list<string> >::iterator itTranscrit = _transcrit.find(color);
 			if(itTranscrit != _transcrit.end()){
 				itTranscrit->second.push_back(key);
 			}
 			else{
 				list<string> tmpList;
 				tmpList.push_back(key);
-				_transcrit.insert(make_pair(idTranscrit,tmpList));
+				_transcrit.insert(make_pair(color,tmpList));
 			}
+
     }
   /*
    * Load Junctions
    */
 
     map<string, s32>::iterator itJS; // Known Junctions
-  int nbKnownJunctions = 0;
   tmpEnd = end;
- // cout << record->getAttribute() << " exonIdPrevious "<< exonIdPrevious<<endl;
   if(record->getAttribute() == exonIdPrevious){
     ostringstream oss,oss2;
 
@@ -107,7 +110,6 @@ SSRContigLists::SSRContigLists(GffRecordList listRecord, map<string, string>& se
 		itJS = _kwJunctions.find(key);
 		if (itJS == _kwJunctions.end()) {
 		  _kwJunctions.insert( make_pair(key, 1) ); // key, coverage
-		  nbKnownJunctions++; //XXX nbKnownJunction, what is it for ?
 		}
 		else
 			itJS->second += 1 ;
@@ -116,7 +118,6 @@ SSRContigLists::SSRContigLists(GffRecordList listRecord, map<string, string>& se
 		itJS = _kwJunctions.find(key2);
 		if (itJS == _kwJunctions.end()) {
 		  _kwJunctions.insert( make_pair(key2, 1) );
-		  nbKnownJunctions++;
 		}
 		else
 			itJS->second += 1 ;
@@ -129,39 +130,17 @@ SSRContigLists::SSRContigLists(GffRecordList listRecord, map<string, string>& se
 		itJS = _kwJunctions.find(key);
 		if (itJS == _kwJunctions.end()) {
 		  _kwJunctions.insert( make_pair(key, 1) );
-		  nbKnownJunctions++;
 		}
 		else
 			itJS->second += 1 ;
     }
   }
-
-  else if (!exonIdPrevious.empty()){
-	//  cout << "exonIdPrevious add +1 to idTranscrit "<< idTranscrit<< endl;
-	  ++idTranscrit;
-  }
-
   //update previous value before relooping
 	startPrevious = start;
 	endPrevious = tmpEnd;
 	exonIdPrevious = record->getAttribute();
-//	tagPrevious = itRecord->second;
-//	assign(exonIdPrevious,itRecord->first.tagValues[0]);
-
-	//cout << "put id Transcrit in constructor " << idTranscrit << endl;
   }
-	//XXX TEST
-/*	for(map<s32,list<string> >::iterator itT = _transcrit.begin(); itT != _transcrit.end(); ++itT){
-		cout << itT->first << " ";
-		for(list<string>::iterator itTT = itT->second.begin() ; itTT!= itT->second.end(); ++itTT){
-			cout << *itTT << " ";
-		}
-		cout << endl;
-	}
-
-*/
   for( TcontigLists::iterator  it=_contigs.begin(); it != _contigs.end(); it++ ) (it->second)->startposSort();
-//  listRecord.clear();
  }
 
 

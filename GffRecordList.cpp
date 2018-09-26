@@ -15,13 +15,15 @@ using namespace std;
 GffRecordList::GffRecordList(char * fileName,map<string,string>fastaDB, string typeData){
 	  fstream file;
 	  string line;
-	  checkFormatGff(fileName);
-	  file.open(fileName, ios::in);
 	  map<string,bool> mapAttribute;
 	  string previousAttribute = "";
 
+	  checkFormatGff(fileName);
+	  file.open(fileName, ios::in);
 
 	  while(getline( file, line )){
+		  if (line[0]=='#')//comment line
+		  			continue;
 		  GffRecord* record = new GffRecord(line);
 		  string scaff = record->getSeqName();
 		  map<string,string>::iterator itFasta = fastaDB.find(scaff);
@@ -31,6 +33,7 @@ GffRecordList::GffRecordList(char * fileName,map<string,string>fastaDB, string t
 			  if(record->getType() != "exon" && record->getType() != "HSP") continue;
 			  if(record->getAttribute() != previousAttribute && previousAttribute != "")
 						checkUniqId(mapAttribute, previousAttribute);
+		//	  cout << "record " << *record << endl;
 			  _records.push_back(record);
 		  }
 		  else if(typeData == "annot" || typeData == "abinitio"){
@@ -42,6 +45,7 @@ GffRecordList::GffRecordList(char * fileName,map<string,string>fastaDB, string t
 		  }
 		  previousAttribute = record->getAttribute();
 	  }
+
 	  _records.sort(sortRecordGff);
 	  file.close();
 }
@@ -77,6 +81,8 @@ void GffRecordList::checkFormatGff(char * fileName ){
 	file.open(fileName, ios::in);
 	string line;
 	while(getline( file, line )){
+		if (line[0]=='#')//comment line
+			continue;
 		std::string delimiter = "\t";
 		s32 cmpt = 0;
 		size_t pos = 0;
@@ -91,7 +97,7 @@ void GffRecordList::checkFormatGff(char * fileName ){
 			++cmpt;
 
 		if(cmpt != 9){
-			cerr << "error Gff file hasn't 9 columns " << endl;
+			cerr << "error Gff file "<< fileName <<" hasn't 9 columns " << endl;
 			exit(1);
 		}
 	 }
@@ -150,7 +156,7 @@ void GffRecordList::loadAnnotation( map<string, map<s32,s32> >& cds, bool getCds
 			record->setStart(previousStart);
 
 			itR = _records.erase(--itR);
-			GffRecord* record = *itR;
+		//	GffRecord* record = *itR;
 		}
 		record->setType("exon");
 	 //update the last one
@@ -160,8 +166,69 @@ void GffRecordList::loadAnnotation( map<string, map<s32,s32> >& cds, bool getCds
 	}
 }
 
+
+void GffRecordList::intron(){
+	string previousId;
+	s32 previousStart, previousEnd,currentStart;
+	map< string, s32 > introns;
+	s32 color =0;
+	s32 currentColor = 0;
+	ostringstream tmpKey ;
+	GffRecordL recordsOneTranscrit;
+	for(GffRecordL::iterator itRecord = _records.begin() ; itRecord != _records.end();++itRecord){
+		if((*itRecord)->getAttribute() == previousId){
+			currentStart = (*itRecord)->getStart();
+			tmpKey << previousEnd << "@" << currentStart<<"@";
+			recordsOneTranscrit.push_back(*itRecord);
+			(*itRecord)->setColor(currentColor);
+		}
+		else{
+			string key = tmpKey.str();
+	//		cout << "not the same id " << key << endl;
+			map<string,s32>::iterator itIntrons = introns.find(key);
+			if(itIntrons == introns.end()){
+				color++;
+								currentColor = color;
+		//		cout <<"new transcrit never found "<<endl;
+				for(GffRecordL::iterator itPrevious = recordsOneTranscrit.begin() ; itPrevious != recordsOneTranscrit.end();++itPrevious){
+					(*itPrevious)->setColor(currentColor);
+		//			cout << "color " << (*itPrevious)->getColor()<< " " << **itPrevious<< endl;
+				}
+		//		cout << "increment color "<< key << endl;
+				introns.insert(make_pair(key,currentColor));
+
+			//	(*itRecord)->setColor(color);
+
+
+			}
+			else{
+		//		cout << "else transrti already known " << endl;
+				for(GffRecordL::iterator itPrevious = recordsOneTranscrit.begin() ; itPrevious != recordsOneTranscrit.end();++itPrevious){
+									(*itPrevious)->setColor(itIntrons->second);
+		//							cout << "color " << (*itPrevious)->getColor()<< " " << **itPrevious<< endl;
+								}
+			//	(*itRecord)->setColor(itIntrons->second);
+				currentColor = itIntrons->second;
+			}
+			tmpKey.str("");
+			recordsOneTranscrit.clear();
+			tmpKey<<(*itRecord)->getSeqName() <<"@";
+			recordsOneTranscrit.push_back(*itRecord);
+		}
+		previousId = (*itRecord)->getAttribute();
+		previousStart = (*itRecord)->getStart();
+		previousEnd = (*itRecord)->getEnd();
+		}
+	currentColor++;
+	for(GffRecordL::iterator itPrevious = recordsOneTranscrit.begin() ; itPrevious != recordsOneTranscrit.end();++itPrevious){
+					(*itPrevious)->setColor(currentColor);
+		//			cout << "color " << (*itPrevious)->getColor()<< " " << **itPrevious<< endl;
+				}
+//	for(GffRecordL::iterator itRecord = _records.begin() ; itRecord != _records.end();++itRecord){
+//		cout << "color " << (*itRecord)->getColor()<< " " << **itRecord << endl;
+//	}
+}
 void cdsPhase(s32& phase, list< pair< s32,s32> > pos, string name, map<string,map<s32,s32> >& cds){
-//	cout << "enter in cdsPhase phase "<< phase<< " pos " << pos.size() << endl;
 	if(phase ==1){
 		for(list<pair <s32,s32 > >::iterator itPos = pos.begin(); itPos != pos.end(); ++itPos){
 			s32 start = itPos->first;
@@ -173,7 +240,6 @@ void cdsPhase(s32& phase, list< pair< s32,s32> > pos, string name, map<string,ma
 				 if( cds.find(key) == cds.end()){
 					 cds[key].insert(make_pair(phase,1));
 				 }
-
 				 else{
 					 map<s32,s32>::iterator itCds = cds[key].find(phase);
 					 if( itCds != cds[key].end())
@@ -211,13 +277,12 @@ void cdsPhase(s32& phase, list< pair< s32,s32> > pos, string name, map<string,ma
 }
 
 void GffRecordList::cleanMono(){
+	cout << "clean mono " << endl;
 	map<string, GffRecordL> mapMono = extractMono();
 	for(map<string,GffRecordL >::iterator itMap = mapMono.begin(); itMap != mapMono.end();++itMap){
 
 		GffRecordL cleanRecord = itMap->second;
-		cerr << "\tFind " << cleanRecord.size() << "mono exonique genes on sequence " << itMap->first <<endl;
 		fusionMonoExons(cleanRecord);
-		cerr << "\tAfter cleaning them " << cleanRecord.size()<< " mono" << endl;
 		for(GffRecordL::iterator itRecords = cleanRecord.begin(); itRecords != cleanRecord.end();++itRecords){
 			_records.push_back(*itRecords);
 		}
@@ -227,11 +292,12 @@ map<string, GffRecordL> GffRecordList::extractMono(){
 	GffRecordL listMono;
 	s32 nbexon = 0;
 	string previousId;
-//	printGffRecord();
 	for (GffRecordL::iterator itRecord =_records.begin() ;itRecord != _records.end();){
+	//	cout << "all nodes " << **itRecord << endl;
 		if(previousId.empty()){
 			previousId = (*itRecord)->getAttribute();
-			++nbexon;
+			++itRecord;
+		//	++nbexon;
 			continue;
 		}
 		else if(previousId == (*itRecord)->getAttribute()){
@@ -239,11 +305,10 @@ map<string, GffRecordL> GffRecordList::extractMono(){
 		}
 		else{
 			if(nbexon == 0){
-		//		cout << "current record " << *(*itRecord) << endl;
-		//		cout << "previous record " << *(*itRecord--) << endl;
 				GffRecord* tmpRecord = *--itRecord;
 				itRecord = _records.erase(itRecord);
 				listMono.push_back(tmpRecord);
+	//			cout << "mono " << *tmpRecord << endl;
 			}
 			nbexon = 0;
 		}
@@ -255,16 +320,12 @@ map<string, GffRecordL> GffRecordList::extractMono(){
 		GffRecordL::iterator itRecord = _records.end();
 		_records.erase(--itRecord);
 		listMono.push_back(tmpRecord);
+//		cout << "mono " << *tmpRecord << endl;
 	}
-	//check at the end
-//	for(GffRecordL::iterator itL = listMono.begin() ; itL != listMono.end() ; ++itL){
-//		cout <<"blop " <<  *(*itL) << endl;
-//	}
-
 	map<string,GffRecordL> mapRecord;
+	cout << "There are " << listMono.size() << " mono exonique genes "<< endl;
 	insertMap(mapRecord,listMono);
 	return mapRecord;
-//	return listMono;
 }
 // map<string,list<GffRecord> > mapMono;
 void GffRecordList::insertMap(map<string,GffRecordL>& mapRecord, GffRecordL listMono){
@@ -286,12 +347,11 @@ for( GffRecordL::iterator itList = listMono.begin() ; itList != listMono.end(); 
 
 void GffRecordList::fusionMonoExons(GffRecordL& listMono){
 	//Same idea as /env/ig/soft/rdbioseq/annotation-snapshot/linux-noarch/bin/loci
-//	cout <<" listMono " << listMono.size() << endl;
 	 listMono.sort(sortMonoGff);
 	for(GffRecordL::iterator itListMono = listMono.begin(); itListMono != --listMono.end() ;){//--listMono.end() : we stop one element before the end, like size()-1
 		GffRecordL::iterator itNext = itListMono;
 		++itNext;
-		if((*itListMono)->getSeqName() == (*itNext)->getSeqName() && (*itListMono)->getStrand() == (*itNext)->getStrand()){ //(itListMono->strand == itNext->strand || itListMono->strand=='.' || itNext->strand == '.')){//&& itListMono->strand == itNext->strand){ FIXME fusionne mono with . or + or - ??
+		if((*itListMono)->getSeqName() == (*itNext)->getSeqName() && (*itListMono)->getStrand() == (*itNext)->getStrand()){ //(itListMono->strand == itNext->strand || itListMono->strand=='.' || itNext->strand == '.')){//&& itListMono->strand == itNext->strand){
 			if( ((*itNext)->getEnd() >= (*itListMono)->getStart() && (*itNext)->getEnd() <= (*itListMono)->getEnd())
 			|| ((*itListMono)->getEnd() >= (*itNext)->getStart() && (*itListMono)->getEnd() <= (*itNext)->getEnd())){
 				(*itNext)->setStart(min((*itListMono)->getStart(),(*itNext)->getStart()));
@@ -305,7 +365,6 @@ void GffRecordList::fusionMonoExons(GffRecordL& listMono){
 		else
 			++itListMono;
 	}
-//	cout << " listMono after fusionMonoExons " << listMono.size()<< " " << (*listMono.begin())->getStart() <<" "<< (*listMono.begin())->getEnd() << endl;
 }
 
 
@@ -314,5 +373,11 @@ bool sortMonoGff (GffRecord* record1 , GffRecord*  record2){
 }
 
 bool sortRecordGff (GffRecord*  record1 , GffRecord* record2){
-	return (record1->getSeqName() <= record2->getSeqName() &&  record1->getStart() <= record2->getStart() && record1->getAttribute() <= record2->getAttribute());
+	return ( (record1->getSeqName() < record2->getSeqName()) ||
+			( record1->getSeqName() == record2->getSeqName() && record1->getAttribute() < record2->getAttribute()) ||
+			( record1->getSeqName() == record2->getSeqName() && record1->getAttribute() == record2->getAttribute()
+					&& record1->getStart() < record2->getStart() )
+
+	);
 }
+

@@ -16,8 +16,8 @@ s32 SSRContigList::NBNEIGHBOUR;
 s32 SSRContigList::MINSIZEINTRON;
 s32 SSRContigList::MAXSIZEINTRON;
 s32 SSRContigList::MINCOVWORD2ORIENTATE;
-s32 SSRContigList::REDUCEEXONLIST;
-s32 SSRContigList::VERBOSE;
+//s32 SSRContigList::REDUCEEXONLIST;
+//s32 SSRContigList::VERBOSE;
 
 
 // to build a list of potential exons from a covtig
@@ -25,13 +25,10 @@ void SSRContigList::populateExons(SSRContig* ctg, map<string, bool>& _seenExons)
   ctg->populateExons();
 
   TSSRList* Lexons = ctg->getExons();
- // cout << "Get exons son from ctg "<< endl;
   for(TSSRList::iterator itEx = Lexons->begin(); itEx != Lexons->end(); itEx++) {
     SSRContig* exon = *itEx;
-   // cout << "Exon " << *exon << endl;
     ostringstream oss;
     oss << exon->seqName() << "@" << exon->start() << "@" << exon->end() << "@" << exon->strand();
-
     string key = oss.str();
     map<string, bool>::iterator it = _seenExons.find(key);
     if (it != _seenExons.end()) {
@@ -45,7 +42,6 @@ void SSRContigList::populateExons(SSRContig* ctg, map<string, bool>& _seenExons)
 }
 
 map<s32,list<SSRContig*> > SSRContigList::mapCovtigs(TSSRList cov){
-//	cout << " mapCovtig "<<endl;
 	time_t  before = time(NULL);
 	map<s32,list<SSRContig*> > mCov;
 	map<s32,list<SSRContig*> >::iterator itMCov;
@@ -62,7 +58,6 @@ map<s32,list<SSRContig*> > SSRContigList::mapCovtigs(TSSRList cov){
 		}
 	}
 	 time_t  after = time(NULL);
-	// cout << " time SSRContigList::mapCovtigs " << difftime(after,before)<<endl;
 	return mCov;
 }
 
@@ -93,11 +88,13 @@ map<pair<string, s32>,list<string> > SSRContigList::mapJunctions(map<string,s32>
 NetEx* SSRContigList::buildGraph( map<string, s32>& KJunctions) {
 	TSSRList::iterator itPrec;
 	map<string, bool> _seenExons;
+
 	for( itPrec = _contigs.begin(); itPrec != _contigs.end(); itPrec++) {
 		SSRContig* covtigA = *itPrec;
 		if(!covtigA->isPopulate())  this->populateExons(covtigA, _seenExons);
     }
 	SSRContig* covtigA = *(_contigs.begin());
+
 	string seqname = covtigA->seqName();
 	TSSRList* vertices = exons2vertices();
 	map<Edge,s32> weight;
@@ -117,16 +114,8 @@ TSSRList* SSRContigList::exons2vertices() {
 
     for(TSSRList::iterator itEx = exons->begin(); itEx != exons->end(); itEx++) {
       SSRContig* exon = *itEx;
-  //    cout << "ctg id " << ctg->getID()<<endl;
       exon->setID(i);
       vertices->push_back( exon );
-   /*   		map<s32,bool> mapIdTranscrit = exon->getIdTranscrit();
-      				cout << " sources map id transcrit " << i << " : map size " << mapIdTranscrit.size() << " ";
-      				for(map<s32,bool>::iterator itMap = mapIdTranscrit.begin() ; itMap != mapIdTranscrit.end(); ++itMap){
-      					cout <<"blop " <<  itMap->first << " ";
-      				}
-      				cout << endl;
-     */
       ++i;
     }
   }
@@ -150,7 +139,6 @@ list<Edge>* SSRContigList::junctions2edges(TSSRList* vertices, map<string,s32> K
 		  map<string,s32>::iterator itKJ = KJunctions.find(keyJunction);
 		  if(itKJ != KJunctions.end()){
 			  coverage = itKJ->second;
-		   //   cout << keyJunction << " idV "<< v->getID() << " idB " << exonB->getID() <<endl;
 		      Edge pairEdge =  make_pair(v->getID(), exonB->getID());
 		      edges->push_back( pairEdge);
 		      map<Edge,s32>::iterator itW = weight.find(pairEdge);

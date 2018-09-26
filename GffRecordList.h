@@ -38,10 +38,10 @@ class GffRecordList {
 	GffRecordList(char * fileName,map<string,string>fastaDB, string typeData);
 
   ~GffRecordList() {
-	//  for(GffRecordL::iterator itGffRecord = _records.begin(); itGffRecord != _records.end(); ++itGffRecord){
-	//	  delete *itGffRecord;
-	// }
-
+/*	  for(GffRecordL::iterator itGffRecord = _records.begin(); itGffRecord != _records.end(); ++itGffRecord){
+		  delete *itGffRecord;
+	 }
+*/
   }
   void copyGffRecordList(GffRecordList gffRecord);
 
@@ -55,6 +55,7 @@ class GffRecordList {
   void insertMap(map<string,GffRecordL>& mapRecord, GffRecordL listMono);
   void fusionMonoExons(GffRecordL& listMono);
   void cleanMono();
+  void intron();
 };
 
 void checkUniqId(map<string,bool>& mapAttribute, string previousAttribute);

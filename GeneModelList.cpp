@@ -14,7 +14,6 @@ void GeneModelList::deleteIncludedModel(){
 	list<GeneModel>::iterator itNext ;
 	list<GeneModel> tmpList = _models;
 	s32 cdsSize1,cdsSize2;
-//	cout << "deleteIncludedModel " << _models.size() << endl;
 	for(list<GeneModel>::iterator itOfGene = _models.begin(); itOfGene != --_models.end();++itOfGene){
 		if(_models.size() == 1 )
 			break;
@@ -38,7 +37,7 @@ void GeneModelList::deleteIncludedModel(){
 			   debCDS1 = itOfGene->getCDS().first;
 			   finCDS1 = itOfGene->getCDS().second;
 			 }
-					cdsSize1 = itOfGene->getCdsSize();
+			cdsSize1 = itOfGene->getCdsSize();
 
 			if(exonCDS1.size()==0)
 				continue;
@@ -64,44 +63,44 @@ void GeneModelList::deleteIncludedModel(){
 					--itExon1;
 					continue;
 				}
+			//	cout <<"itExon1 " << itExon1->first <<" " << itExon1->second  << " itExon2 "<< itExon2->first << " " << itExon2->second <<endl;
 				if((itExon1->first == itExon2->first && itExon1->second == itExon2->second ) || (itExon1 == exonCDS1.begin() && itExon1->first >= itExon2->first && itExon1->second == itExon2->second) || (itExon2 == exonCDS2.begin() && itExon2->first >= itExon1->first && itExon2->second == itExon1->second)){
 					if(itExon1->second+ itOfGene->get3pXL() == finCDS1 && cdsSize1 <= cdsSize2){
+		//				cout << "set to delete itExon1->second+ itOfGene->get3pXL() == finCDS1 && cdsSize1 <= cdsSize2 "<<endl;
 						itOfGene->setToDelete(true);
-				//		cout << "*** DELETE model " << endl;
 						LOOP = false;
 						break;
 					}
 					else if (itExon2->second + itNext->get3pXL() == finCDS2  && cdsSize2 <= cdsSize1){
+		//				cout <<"set to delete itExon2->second + itNext->get3pXL() == finCDS2  && cdsSize2 <= cdsSize1 "<<endl;
 						itNext->setToDelete(true);
-			//			cout << "*** DELETE model " << endl;
 						break;
 					}
 					continue;
 				}
 				else{
 					if(itExon1->second>= finCDS1 && cdsSize1 <= cdsSize2 && itExon1->second < itExon2->second){ //On n'a plus la meme cds mais on verifie si on n'a pas atteint la fin de l'une d'elles
+			//			cout << "set to delete itExon1->second>= finCDS1 && cdsSize1 <= cdsSize2 && itExon1->second < itExon2->second "<<endl;
 						itOfGene->setToDelete(true);
-			//			cout << "*** DELETE model " << endl;
 						LOOP = false;
 						break;
 					}
 					else if (itExon2->second>= finCDS2 && cdsSize2 <= cdsSize1 && itExon2->second < itExon1->second){
+			//			cout << "set to delete itExon2->second>= finCDS2 && cdsSize2 <= cdsSize1 && itExon2->second < itExon1->second "<<endl;
 						itNext->setToDelete(true);
-			//			cout << "*** DELETE model " << endl;
 						break;
 					}
 					else
 						break;
 				}
 			}
+	//		cout <<" set to delete " << itNext->getToDelete() << " "<< *itNext<< endl;
 		}//for loop itNext
+	//	cout <<" set to delete " << itOfGene->getToDelete() << " "<< *itOfGene<< endl;
 	}//for loop itOfGene
-//	cout << "deletedIncludedModel after " << _models.size() << endl;
-
 }
 
 void GeneModelList::longestCDS(){
-
 	GeneModel* longestModel;
 	for(list<GeneModel>::iterator itModel = _models.begin(); itModel != _models.end(); ++itModel){
 		if(itModel== _models.begin()){
@@ -110,7 +109,7 @@ void GeneModelList::longestCDS(){
 		}
 		if(itModel->getCdsSize() > longestModel->getCdsSize() && itModel->getModelSize() > longestModel->getModelSize() && !itModel->getToDelete()){
 			if(itModel != _models.begin())
-				longestModel->setToDelete(true);
+				longestModel->setToDelete(true); //FIXME probleme in this if ?
 
 			longestModel = &*itModel;
 			longestModel->setToDelete(false);
@@ -124,7 +123,6 @@ void GeneModelList::longestCDS(){
 
 
 void GeneModelList::catchModelOnUTR(GeneModel * longestModel){// catch model taht are on utr from longest orf in cc
-
 	for(list<GeneModel>::iterator itModel = _models.begin(); itModel != _models.end(); ++itModel){
 		if(! longestModel->overlapOrf(itModel->getCDS())){
 			itModel->setToDelete(false);
@@ -172,7 +170,7 @@ void GeneModelList::clusterLocation(){ //Cluster location sur les CDS !!
 				continue;
 				if(itModel1 == itModel2)
 				continue;
-			if(itModel1->overlapOrf(*itModel2) && itModel1->getStrand() == itModel2->getStrand()){
+			if(itModel1->overlapOrf(*itModel2) ){//&& itModel1->getStrand() == itModel2->getStrand()){
 				if(itModel1->getCluster()==0 && itModel2->getCluster()==0){
 					itModel1->setCluster(numCluster);
 					itModel2->setCluster(numCluster);
@@ -207,13 +205,11 @@ void GeneModelList::clusterLocation(){ //Cluster location sur les CDS !!
 		itMap->second.sort(sortCdsB);
 	}
 	for(map<s32,list<GeneModel*> >::iterator itMap = mapClusterModel.begin() ; itMap != mapClusterModel.end() ; ++itMap){
-	//	cout <<"itMap " << itMap->first << "\t";
 		if(itMap->first == 0 )//at map[0] model with no clusters
 			continue;
 		itMap->second.sort(sortCdsB);
 		list<GeneModel*> keepModel;
 		for(list<GeneModel*>::iterator itList = itMap->second.begin() ; itList != itMap->second.end() ; ++itList){
-		//	cout << **itList << "\t" ;
 			if(itList == itMap->second.begin()  ){
 				(*itList)->setToDelete(false);
 				keepModel.push_back(*itList);
@@ -229,7 +225,6 @@ void GeneModelList::clusterLocation(){ //Cluster location sur les CDS !!
 					keepModel.push_back(*itList);
 			}
 		}
-	//cout << endl;
 	}
 }
 
@@ -266,6 +261,32 @@ void GeneModelList::ratioCdsUtr(){
 			if(ratio < 0.8)
 				itModels->setToDelete(true);
 	}
+}
+
+s32 GeneModelList::printOut(ofstream& ofs_modelsFilename, bool formatDef){
+	s32 modelsPrint = 0;
+	for(GeneModelL::iterator itModels = _models.begin(); itModels != _models.end() ; ++itModels){
+		if(!itModels->getToDelete()){
+			++modelsPrint;
+		//	cout << "CDS in printOUT " << itModels->getCDS().first << " " << itModels->getCDS().second << endl;
+		//	cout << *itModels << endl;
+			itModels->printAnnot(ofs_modelsFilename, formatDef);
+		}
+	}
+
+//	ofs_modelsFilename.close();
+	return modelsPrint;
+}
+
+void GeneModelList::filter(bool ratio,s32 min_size_cds,char* longReadsFilename){
+
+	    this->includedMono();
+	    this->deleteSmallCDS(min_size_cds);
+
+	    if(longReadsFilename == NULL)
+	    	this->clusterLocation();
+	    if(ratio)
+	    	this->ratioCdsUtr();
 }
 bool sortCds(const GeneModel & model1, const GeneModel & model2) {
 	if(model1.getCdsSize() > model2.getCdsSize() )

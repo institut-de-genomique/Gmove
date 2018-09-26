@@ -38,6 +38,7 @@ class GffRecord {
 	string _strand;
 	string _phase;
 	string _attribute;
+	s32 _color;
 
  public:
 
@@ -62,10 +63,12 @@ class GffRecord {
   string getStrand() const { return _strand; }
   string getPhase() const { return _phase; }
   string getAttribute() const { return _attribute; }
+  s32 getColor() const {return _color;}
 
   void setType(string s){_type = s;}
   void setStart(s32 s){_start = s;}
   void setEnd(s32 e ){_end = e;}
+  void setColor(s32 c){_color = c;}
 };
 
 
