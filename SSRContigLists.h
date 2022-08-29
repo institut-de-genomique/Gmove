@@ -21,40 +21,36 @@
 #include <string>
 #include <map>
 #include <list>
-//#include <seqan/basic.h>
-//#include <seqan/gff_io.h>
-//#include <seqan/stream.h>
 
 using namespace std;
 using namespace boost;
-//using namespace seqan;
 
-typedef map<string, SSRContigList*> TcontigLists; // map<scaffold, listExons>
 
+typedef map<string, SSRContigList*> TcontigLists;
 
 class SSRContigLists {
+  
+  friend ostream& operator<<(ostream&, const SSRContigLists&);
+  
+ protected:
+  TcontigLists _contigs;
+  // map of Junctions from the junctionFile
+  map<string, s32> _kwJunctions;
+  map<s32,list<string> > _transcrit;
+  
+ public:
+  /* Constructors and Destructors*/
+  SSRContigLists() { /*_nbContigs=0;*/ }
+  SSRContigLists(GffRecordList listRecord, map<string, string>& sequences, map<string, s32>& badintrons);
 
-	friend ostream& operator<<(ostream&, const SSRContigLists&);
-
-protected:
-	TcontigLists _contigs;
-//	s32 _nbContigs;
-	map<string, s32> _kwJunctions; // map of Junctions from the junctionFile
-	map<s32,list<string> > _transcrit;
-
-public:
-	/* Constructors and Destructors*/
-	SSRContigLists() { /*_nbContigs=0;*/ }
-	SSRContigLists(GffRecordList listRecord, map<string, string>& sequences) ;
-		~SSRContigLists() {
-		for(TcontigLists::iterator itCtg =  _contigs.begin(); itCtg != _contigs.end();++itCtg){
-			delete itCtg->second;
-		}
-	}
-
-	list<NetEx*> buildGraph();
-//	void extendCovtigs(DnaDictionary&);
-	void cleanJunctions();
+  ~SSRContigLists() {
+    for(TcontigLists::iterator itCtg =  _contigs.begin(); itCtg != _contigs.end();++itCtg)
+      delete itCtg->second;
+  }
+  
+  s32 addJunction(string, s32, s32, s32, s32, s32, s8, map<string, s32>&);
+  list<NetEx*> buildGraph();
+  void cleanJunctions();
 };
 
 

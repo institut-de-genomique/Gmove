@@ -10,8 +10,14 @@
 #ifndef _LOCALTYPE_H_
 #define _LOCALTYPE_H_
 
-#define TRUE 1;
-#define FALSE 0;
+#define TRUE 1
+#define FALSE 0
+
+// scores affected to each resource
+#define RNA_DATA 6
+#define PROTEIN_DATA 2
+#define ABINITIO_DATA 1
+#define ANNOT_DATA 8
 
 // char types
 typedef char s8;
@@ -37,8 +43,6 @@ typedef unsigned long u64;
 typedef float f4;
 typedef double f8;
 typedef long double f12;
-
-
 
 #endif // _LOCALTYPE_H_
 

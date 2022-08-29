@@ -3,7 +3,8 @@
 +  GffRecordList.h
 +
 +  Copyright (c) 2017 Genoscope, CEA, CNS, Evry, France
-+  Author : Marion Dubarry, jmaury@genoscope.cns.fr
++  Author : Jean-Marc Aury & Marion Dubarry, 
++           jmaury@genoscope.cns.fr
 +
 *******************************************************************************/
 
@@ -12,7 +13,7 @@
 
 #include <iostream>
 #include <fstream>
-#include <stdlib.h>     /* exit, EXIT_FAILURE */
+#include <stdlib.h>
 #include <sstream>
 #include <list>
 #include <map>
@@ -25,45 +26,40 @@ using namespace std;
 typedef list<GffRecord*> GffRecordL;
 
 class GffRecordList {
-
-	protected:
-
-	GffRecordL _records;
-
- public:
-
+  
+ protected:
+  GffRecordL _records;
+  
+ public:  
   /* Constructors and Destructors*/
-	//Lsta_scaffold10 Gmove   mRNA    100764  101283  .       +       .       ID=mRNA.Lsta_scaffold10.1.1;Name=mRNA.Lsta_scaffold10.1.1;start=1;stop=1;cds_size=165;model_size=520
-	GffRecordList(){};
-	GffRecordList(char * fileName,map<string,string>fastaDB, string typeData);
-
+  GffRecordList(){};
+  GffRecordList(char*, map<string,string>, s8);
+  
   ~GffRecordList() {
-/*	  for(GffRecordL::iterator itGffRecord = _records.begin(); itGffRecord != _records.end(); ++itGffRecord){
-		  delete *itGffRecord;
-	 }
-*/
   }
-  void copyGffRecordList(GffRecordList gffRecord);
 
+  void clean() {
+    for(GffRecordL::iterator itGffRecord = _records.begin(); itGffRecord != _records.end(); ++itGffRecord)
+      delete *itGffRecord;
+  }
+  void copyGffRecordList(GffRecordList);
+  
   void printGffRecord();
   map<string,GffRecordL> extractMono();
-  void checkFormatGff(char* line);
-  void loadGff(map<string, map<s32,s32> >& cds);
-  void loadAnnotation( map<string, map<s32,s32> >& cds, bool useCds);
-  bool empty(){return _records.empty();};
-  GffRecordL* getRecords(){return &_records;}
-  void insertMap(map<string,GffRecordL>& mapRecord, GffRecordL listMono);
-  void fusionMonoExons(GffRecordL& listMono);
+  void checkFormatGff(char*);
+  void loadGff(map<string, map<s32,s32> >&);
+  void loadAnnotation( map<string, map<s32,s32> >&, bool);
+  bool empty() { return _records.empty(); };
+  GffRecordL* getRecords() { return &_records; }
+  void insertMap(map<string,GffRecordL>&, GffRecordL);
+  void fusionMonoExons(GffRecordL&);
   void cleanMono();
   void intron();
 };
 
-void checkUniqId(map<string,bool>& mapAttribute, string previousAttribute);
-void cdsPhase(s32& phase, list< pair< s32,s32> > pos,  string name, map<string,map<s32,s32> >& cds);
-bool sortMonoGff (GffRecord* record1 ,  GffRecord* record2);
-bool sortRecordGff (GffRecord*  record1 , GffRecord* record2);
-
-
-
+void checkUniqId(map<string,bool>&, string);
+void cdsPhase(s32&, list< pair< s32,s32> >, string, map<string,map<s32,s32> >&);
+bool sortMonoGff (GffRecord*, GffRecord*);
+bool sortRecordGff (GffRecord*, GffRecord*);
 
 #endif

@@ -3,18 +3,17 @@
 +  GffRecord.h
 +
 +  Copyright (c) 2017 Genoscope, CEA, CNS, Evry, France
-+  Author : Marion Dubarry, jmaury@genoscope.cns.fr
++  Author : Jean-Marc Aury & Marion Dubarry, 
++           jmaury@genoscope.cns.fr
 +
 *******************************************************************************/
 
 #ifndef GFFRECORD_H
 #define GFFRECORD_H
 
-
-
 #include <iostream>
 #include <fstream>
-#include <stdlib.h>     /* exit, EXIT_FAILURE */
+#include <stdlib.h>
 #include <sstream>
 #include <string>
 #include <list>
@@ -26,34 +25,32 @@
 using namespace std;
 
 class GffRecord {
-	friend ostream& operator<<(ostream&, const GffRecord&);
+  friend ostream& operator<<(ostream&, const GffRecord&);
+
  protected:
-
-	string _seqname;
-	string _method;
-	string _type;
-	s32 _start;
-	s32 _end;
-	f4 _score;
-	string _strand;
-	string _phase;
-	string _attribute;
-	s32 _color;
-
+  string _seqname;
+  string _method;
+  string _type;
+  s32 _start;
+  s32 _end;
+  f4 _score;
+  string _strand;
+  string _phase;
+  string _attribute;
+  s32 _color;
+  s8 _datatype;
+  
  public:
-
+  
   /* Constructors and Destructors*/
-	//Lsta_scaffold10 Gmove   mRNA    100764  101283  .       +       .       ID=mRNA.Lsta_scaffold10.1.1;Name=mRNA.Lsta_scaffold10.1.1;start=1;stop=1;cds_size=165;model_size=520
-  GffRecord(string fileName);
+  GffRecord(string fileName, s8 datatype);
   ~GffRecord() {
-	  }
-
+  }
+  
   void prepareAttribute(string& attribute);
   void split(string s, string delimiter);
-
-
+  
   /* Accessors */
-
   string getSeqName() const { return _seqname; }
   string getMethod() const { return _method; }
   string getType() const { return _type; }
@@ -64,14 +61,12 @@ class GffRecord {
   string getPhase() const { return _phase; }
   string getAttribute() const { return _attribute; }
   s32 getColor() const {return _color;}
-
+  s8 getDatatype() const { return _datatype; }
+  
   void setType(string s){_type = s;}
   void setStart(s32 s){_start = s;}
   void setEnd(s32 e ){_end = e;}
   void setColor(s32 c){_color = c;}
 };
-
-
-
 
 #endif

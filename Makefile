@@ -11,7 +11,7 @@ BIN=gmove
 COMPILER=g++
 CPPFLAGS += -I$(BOOST) -I. #-I$(SEQAN)
 CPPFLAGS += -O3
-CPPFLAGS += -W -Wall -Wno-long-long -Wno-variadic-macros
+CPPFLAGS += -W -Wall -Wno-long-long -Wno-variadic-macros -Wno-deprecated
 CPPFLAGS += -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 CPPFLAGS += -g
 AR = ar cr
@@ -21,7 +21,7 @@ CFLAGS += -I.
 CFLAGS += -O3
 CFLAGS += -c
 
-	
+
 gmove: $(OBJ)
 	${COMPILER} ${CPPFLAGS} -o $(DIR_BIN_PROD)$(BIN) $(MAIN_FILE) $(OBJ)
 
