@@ -143,7 +143,7 @@ class NetEx {
       TSSRList::iterator it1;
       it1 = _vertices->begin();
       int nb = *vi;
-      advance(it1,nb);
+      std::advance(it1,nb);
       ++next;
       _graph[*vi].guid.deleteVertex = false;
       _graph[*vi].vertex = *it1;

@@ -373,7 +373,7 @@ int main(int argc, char** argv) {
 	  s32 begReg = -1, endReg = 0;
 	  for(list<s32>::const_iterator itComp = component.begin(); itComp != component.end(); itComp++){
 	    TSSRList::iterator it1 = oneRes->getVertices()->begin();
-	    advance(it1,*itComp);
+	    std::advance(it1,*itComp);
 	    SSRContig* ctgTag = *it1;
 	    if (begReg == -1 || begReg > ctgTag->start() ) begReg = ctgTag->start();
 	    if (ctgTag->end() > endReg) endReg = ctgTag->end();
@@ -398,7 +398,7 @@ int main(int argc, char** argv) {
 	
 	for(list<list<s32> >::iterator itPa = allpaths.begin(); itPa != allpaths.end(); itPa++) {
 	  
-	  cerr << "Look at path " << distance(allpaths.begin(), itPa)+1 << "/" << allpaths.size() << endl;
+	  cerr << "Look at path " << std::distance(allpaths.begin(), itPa)+1 << "/" << allpaths.size() << endl;
 	  
 	  GeneModel gene = GeneModel(*itPa, oneRes->getVertices(), oneRes->getSeqName(), c+1, search_window, genetic_code, probExons);//XXX What is probExons ?
 	  

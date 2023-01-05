@@ -237,7 +237,7 @@ void NetEx::bfs(s32 startId, map<s32,list < list<s32> > >& paths, s32 currentCol
     if(SSRContig::VERBOSE) cout << "in BFS out_degree " << out_degree(parentId, _graph) << " node " << parentId << endl;
     for (tie(ei, ei_end) = out_edges(parentId, _graph); ei != ei_end; ++ei) {
       TSSRList::iterator it1 = _vertices->begin();
-      advance(it1,target(*ei, _graph));
+      std::advance(it1,target(*ei, _graph));
       s32 childId = (*it1)->getID();
       if(SSRContig::VERBOSE) cout << "child " << *(*it1) << " out degree " << out_degree(childId, _graph)<< endl;
       map<s32,bool> mapIdTranscrit = (*it1)->getIdTranscrit();
@@ -268,7 +268,7 @@ void NetEx::bfs(s32 startId, map<s32,list < list<s32> > >& paths, s32 currentCol
 	  cout << " else colorNotAllowed.push_back(currentColor); "<<endl;
 	  //Put all colorFrom my current Node in colorNotAllowed
 	  TSSRList::iterator it1 = _vertices->begin();
-	  advance(it1,parentId);
+	  std::advance(it1,parentId);
 	  SSRContig* ctg = *it1;
 	  if(SSRContig::VERBOSE) cout <<"parent " <<  *ctg << endl;
 	  map<s32,bool> mapIdTranscritParent = ctg->getIdTranscrit();
@@ -352,7 +352,7 @@ void NetEx::bfs(s32 startId, map<s32,list < list<s32> > >& paths, s32 currentCol
     if(out_degree(parentId,_graph)== 0){
       
       TSSRList::iterator it1 = _vertices->begin();
-      advance(it1,parentId);
+      std::advance(it1,parentId);
       //	cout << "in bfs node as no out_edges : " << **it1 << endl;
       //	for (list < list<s32> >::iterator it = paths[idNodeParent].begin(); it != paths[idNodeParent].end(); ++it){
       //		cout <<"path of no edges ";
@@ -392,7 +392,7 @@ void NetEx::printAllNodes(list<s32> comp){
   for (list<s32>::iterator j = comp.begin(); j != comp.end() ; j++) {
     cout << "j " << *j << endl;
     TSSRList::iterator it1 = _vertices->begin();
-    advance(it1,*j);
+    std::advance(it1,*j);
     SSRContig* ctg = *it1;
     cout << *ctg << " color ";
     
@@ -452,7 +452,7 @@ list<list<s32> > NetEx::PathsFinderWithCondition(list<s32> comp){
 void NetEx::searchAllColor(s32 idSource,map<s32,list < list<s32> > >& predM,set<s32>& colorNotAllowed, set<s32>& visited){
   //time_t before1 = time(NULL);
   TSSRList::iterator it1 = _vertices->begin();
-  advance(it1,idSource);
+  std::advance(it1,idSource);
   SSRContig* ctg = *it1;
   
   if(SSRContig::VERBOSE) cout <<"parent " <<  *ctg << endl;
@@ -789,7 +789,7 @@ void NetEx::deleteNode(){
       TSSRList::iterator it1;
       it1 = _vertices->begin();
       int nb =vi;
-      advance(it1,nb);
+      std::advance(it1,nb);
       //		cout << " delete vertex " << **it1 << "in degree " <<in_degree((*it1)->getID(), _graph) << " out degree "<< out_degree((*it1)->getID(), _graph) <<endl;
       
       _vertices->erase (it1);
@@ -805,7 +805,7 @@ void NetEx::synchronisedId(){ //boost library update ids after deleting a node. 
   for(u32 vi = 0 ; vi < num_vertices(_graph); ++vi){
     TSSRList::iterator it1;
     it1 = _vertices->begin();
-    advance(it1,vi);
+    std::advance(it1,vi);
     (*it1)->setID(vi);
   }
 }
