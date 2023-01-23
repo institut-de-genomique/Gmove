@@ -131,27 +131,31 @@ list<list<s32> > NetEx::pathWithHigherWeight(list<s32>& comp){
   list<list<s32> > allPath;
   list <s32> sources;
   sources = sourcesNodes(comp);
-  for (list<s32>::iterator startNode = sources.begin(); startNode != sources.end(); ++startNode) { //Find Path for each start Node
+  //cerr << "number of source nodes: " << sources.size() << endl;
+  //Find Path for each start Node
+  for (list<s32>::iterator startNode = sources.begin(); startNode != sources.end(); ++startNode) {
     map<s32,s32> previousNode;
     map<s32,s32> distance;
     initDijkstra(comp,*startNode,distance,previousNode);
     list<s32> Q = comp;
     
-    
-    while (!Q.empty()){
+    while (!Q.empty()) {
       s32 distS = Q.front();
-      
       Q.pop_front();
       for ( pair<out_edge_it, out_edge_it> p = out_edges(distS, _graph) ; p.first != p.second ; ++p.first ) {
 	updateDist(distS,target(*p.first, _graph),distance,previousNode);
       }
     }
     
-    list<s32> stop = endNodes(comp);
+    list<s32> stop = endNodes(comp);    
+    //cerr << "number of end nodes: " << stop.size() << endl;
     list<s32> path;
+    //u32 cpt = 0;
     for(list<s32>::iterator itStop = stop.begin(); itStop != stop.end();++itStop){
       path = shortestPath(*itStop,*startNode,previousNode);
-      allPath.push_back(path);
+      if(path.size() > 0) allPath.push_back(path);
+      //cpt++;
+      //cerr << "Path num: " << cpt << " with " << path.size() << " nodes" << endl;
     }
   }
   return allPath;
@@ -433,7 +437,7 @@ list<list<s32> > NetEx::PathsFinderWithCondition(list<s32> comp){
     before = time(NULL);
     for(list<s32>::iterator itEnd = endList.begin() ; itEnd != endList.end() ; ++itEnd){
       //s32 childId = nodeToVertex(*itEnd);
-      map<s32,list < list<s32> > >::iterator itPred = predM.find(*itEnd);
+      //map<s32,list < list<s32> > >::iterator itPred = predM.find(*itEnd);
       paths.splice(paths.end(), predM[*itEnd]);
     }
     after = time(NULL);
@@ -713,10 +717,10 @@ void NetEx::cleanGraph(){
 	      _vertices->push_back(newCtg);
 	      Vertex u = boost::add_vertex(_graph);
 	      _graph[u].vertex = newCtg;
+	      _graph[u].guid.deleteVertex = false;
 	      updateWeightStartNode((*itCurrentStart)->getID(),newCtg->getID());
 	      updateWeightEndNode(ctgEnd->getID(),newCtg->getID());
 	      //FIXME test
-	      
 	      clear_vertex(ctgEnd->getID(),_graph); //clear all edges before removing the vertex
 	      _graph[ctgEnd->getID()].guid.deleteVertex = true;
 	      //			 cout << "clear vertex " << *ctgEnd <<  " in degree " <<in_degree(ctgEnd->getID(), _graph) << " out degree "<< out_degree(ctgEnd->getID(), _graph) <<endl;

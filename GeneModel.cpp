@@ -814,8 +814,8 @@ bool GeneModel::cdsIsMono(){
     return false;
 }
 
-list<pair<s32,s32> > GeneModel::getExonsCds(){//FIXME Error in getExonsCds ! when there is UTR and CDS on the same exon !
-  
+list<pair<s32,s32> > GeneModel::getExonsCds() {
+  //FIXME Error in getExonsCds ! when there is UTR and CDS on the same exon !
   list<pair<s32,s32> > exonCDS1;
   s32 debCDS1 = _cds.second, finCDS1 = _cds.first;
   if (_cds.first < _cds.second) {
