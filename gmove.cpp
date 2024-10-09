@@ -317,7 +317,10 @@ int main(int argc, char** argv) {
       time_t before_cc = time(NULL);
       cerr << "Change cc "<< c+1 <<"/"<< components.size()<<endl;
       list<s32> component =  components[c];
-      if (component.size() > cutoff_nbExons){ //1 -> nb membre de la composante /! 1 after cleaned
+      bool validCC = oneRes->validCC(component);
+      // check if the CC has more exons than a threshold (0 if we want to keep single exon genes)
+      // and if the CC does not contain only invalid exons
+      if (component.size() > cutoff_nbExons && validCC) {
 	cb++;
 	s32 nbedges=0, nbvertices=0;
 	oneRes->countVerticesAndEgdes(component, nbvertices, nbedges);

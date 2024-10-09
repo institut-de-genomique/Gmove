@@ -35,6 +35,7 @@ GffRecord::GffRecord(string line, s8 datatype) {
 }
 
 void GffRecord::prepareAttribute(string& attribute){
+  //std::replace( attribute.begin(), attribute.end(), '=', ' ');
   string delimiter;
   size_t pos = 0;
   if((pos = attribute.find("Parent=")) != string::npos){

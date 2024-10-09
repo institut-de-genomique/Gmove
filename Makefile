@@ -1,5 +1,4 @@
 BOOST = /usr/include/boost/
-#SEQAN = /env/cns/src/seqan-src/include/
 
 DIR_BIN_PROD=$(DIR)
 
@@ -9,7 +8,7 @@ MAIN_FILE=gmove.cpp
 BIN=gmove
 
 COMPILER=g++
-CPPFLAGS += -I$(BOOST) -I. #-I$(SEQAN)
+CPPFLAGS += -I$(BOOST) -I$(BOOST_INCDIR) -I.
 CPPFLAGS += -O3
 CPPFLAGS += -W -Wall -Wno-long-long -Wno-variadic-macros -Wno-deprecated
 CPPFLAGS += -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64

@@ -186,6 +186,7 @@ class NetEx {
   void searchAllColor(s32 idSource,map<s32,list < list<s32> > >& predM,set<s32>& colorNotAllowed,set<s32>&);
  // map<s32,s32> mapIdsVertextoBGL();
   void countVerticesAndEgdes(list<s32>&, s32&, s32&);
+  bool validCC(list<s32>&);
   list<s32> sourcesNodes(list<s32>comp);
   list<s32> endNodes(list<s32> comp);
   s32 count_allPaths(list<s32>&);

@@ -169,6 +169,7 @@ class GeneModel {
   void formatGTF (ofstream &forf);
   void printAnnot(ofstream &forf, bool format);
   void formatGFF (ofstream &forf);
+  void formatGFFstandard (ofstream &forf); 
 
   void keepModel(map<string,GeneModel>& mapGeneModel);
   bool cdsIsMono(void);

@@ -28,6 +28,17 @@ void NetEx::countVerticesAndEgdes(list<s32>& comp, s32& nbVertices, s32& nbEdges
     nbEdges += out_degree(*j,_graph);
 }
 
+// does the graph contain a single node that should be erase
+bool NetEx::validCC(list<s32>& comp) {
+  s32 nbVertices = comp.size();
+  bool valid = true;
+  if(nbVertices > 1) return valid;
+  for (list<s32>::iterator j = comp.begin(); j != comp.end(); j++) {
+    if(_graph[*j].guid.deleteVertex == true) valid = false;
+  }
+  return valid;
+}
+
 list<s32> NetEx::sourcesNodes(list<s32>comp){
   list<s32> sources;
   for (list<s32>::iterator j = comp.begin(); j != comp.end() ; j++) {
@@ -787,21 +798,20 @@ void NetEx::cleanGraph(){
   cerr << "After cleaning, number vertices " << num_vertices(_graph) << " number edges "<< num_edges(_graph)<<endl;
 }
 
-void NetEx::deleteNode(){
-  for(u32 vi = 0 ; vi < num_vertices(_graph); ){
-    if(_graph[vi].guid.deleteVertex == true){
-      TSSRList::iterator it1;
-      it1 = _vertices->begin();
-      int nb =vi;
-      std::advance(it1,nb);
-      //		cout << " delete vertex " << **it1 << "in degree " <<in_degree((*it1)->getID(), _graph) << " out degree "<< out_degree((*it1)->getID(), _graph) <<endl;
-      
-      _vertices->erase (it1);
-      clear_vertex(vi,_graph);
-      remove_vertex(vi, _graph);
+// we only remove edges as removing vertex is unsafe
+// This will create isolate nodes that will be detected during the extraction of connected components
+void NetEx::deleteNode() {
+  s32 nb_vertices = num_vertices(_graph);
+  for(s32 vi = 0; vi < nb_vertices; ) {
+    if(_graph[vi].guid.deleteVertex == true) {
+      //TSSRList::iterator it1;
+      //it1 = _vertices->begin();
+      //int nb = vi;
+      //std::advance(it1, nb);
+      //cerr << " delete vertex " << **it1 << " in degree " <<in_degree((*it1)->getID(), _graph) << " out degree "<< out_degree((*it1)->getID(), _graph) <<endl;
+      clear_vertex(vi, _graph);
     }
-    else
-      ++vi;
+    vi++;
   }
 }
 

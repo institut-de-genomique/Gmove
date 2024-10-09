@@ -13,7 +13,8 @@ bool GeneModel::UNORIENTED;
 bool PRINTTIME = false;
 // to print the annotation in the output file
 void GeneModel::printAnnot(ofstream &forf, bool format) {
-  if (format == true) this->formatGFF(forf);
+  //if (format == true) this->formatGFF(forf);
+  if (format == true) this->formatGFFstandard(forf);
   else this->formatGTF(forf);
 }
 
@@ -51,6 +52,138 @@ pair<s32,s32> GeneModel::getTransBound(){
 s32 GeneModel::getModelSizeonGeno() {
   pair<s32,s32> transBound = this->getTransBound();
   return transBound.second - transBound.first + 1;
+}
+
+// GFF3 file outputing: normalize format in order to fit the standard output in several external workflow
+void GeneModel::formatGFFstandard (ofstream &forf) {
+  string strdSt = (_strand < 0) ? "-" : "+";
+  
+  s32 debCDS = _cds.second, finCDS = _cds.first;
+  if (_cds.first < _cds.second) {
+    debCDS = _cds.first;
+    finCDS = _cds.second;
+  } 
+  /*	s32 debTrans = (*_exons.begin())->start();
+	s32 finTrans = (*(--_exons.end()))->end();
+	
+	if (_strand >= 0) {
+	if(_start_found == 0)
+	debTrans = debCDS;
+	else if (_stop_found == 0)
+	finTrans = finCDS;
+	
+	debTrans -= _5pXL;
+	finTrans += _3pXL;
+	}
+	else if (_strand < 0) {
+	if(_start_found == 0)
+	finTrans = finCDS;
+	else if (_stop_found == 0)
+	debTrans = debCDS;
+	
+	finTrans += _5pXL;
+	debTrans -= _3pXL;
+	}
+  */
+  pair<s32,s32> transBound = this->getTransBound();
+  s32 debTrans = transBound.first;
+  s32 finTrans = transBound.second;
+  string argCDS;
+  ostringstream oss;
+  f8 score = this->score();
+
+  forf << _seqname << "\tGmove\tgene\t" << debTrans << "\t" << finTrans << "\t.\t.\t.\t"
+    << "ID=gene." << _seqname << "." << _num_cc
+    << ";Name=gene." << _seqname << "." << _num_cc
+    << endl;
+
+  oss << ";start="<<_start_found<< ";stop=" << _stop_found << ";cds_size=" << _cds_size<<";model_size="<<_model_size+_5pXL+_3pXL<<";exons="<<_exons.size();
+  argCDS = oss.str();
+  forf << _seqname << "\tGmove\tmRNA\t" << debTrans << "\t" << finTrans << "\t" << score << "\t" << strdSt << "\t.\t"
+    << "ID=mRNA." << _seqname << "." << _num_cc << "." << _indMod
+    << ";Name=mRNA." << _seqname << "." << _num_cc << "." << _indMod
+    << ";Parent=gene." << _seqname << "." << _num_cc
+    << argCDS << endl;
+  
+  s32 prev_debExon = 0;
+  bool mergeExon = false;
+  string utr_type = "five_prime_UTR";
+  s32 nb_exons = 0;
+  s32 nb_exCDS = 0;
+  s32 nb_exUTR = 0;
+  for (TSSRList::iterator it = _exons.begin(); it != _exons.end(); it++){
+    s32 debExon = (*it)->start();
+    s32 finExon = (*it)->end()  ;
+    if (_strand >=0) {
+      if (it == _exons.begin()) {debExon -= _5pXL;}
+      if (it == --_exons.end()) {finExon += _3pXL;}
+    }
+    else if(_strand < 0) {
+      if (it == --_exons.end()) {finExon += _5pXL;}
+      if (it == _exons.begin()) {debExon -= _3pXL;}
+    }
+
+    /* exon line */
+    if ( finExon + 1 == debCDS || debExon - 1 == finCDS) { /* exon UTR5p/CDS or CDS/UTR3p */
+        mergeExon = true; /* first exon part to merge */
+    }
+    else if (mergeExon == true) { /* second exon part to merge */
+        nb_exons++;
+        forf << _seqname << "\tGmove\texon\t" << prev_debExon << "\t" << finExon << "\t.\t" << strdSt << "\t.\t"
+        << "ID=exon." << _seqname << "." << _num_cc << "." << _indMod << "." << nb_exons
+        << ";Parent=mRNA." << _seqname << "." << _num_cc << "." << _indMod << endl;
+        mergeExon = false;
+    }
+    else { /* full exon (full CDS or full UTR)*/
+        nb_exons++;
+        forf << _seqname << "\tGmove\texon\t" << debExon << "\t" << finExon << "\t.\t" << strdSt << "\t.\t"
+        << "ID=exon." << _seqname << "." << _num_cc << "." << _indMod << "." << nb_exons
+        << ";Parent=mRNA." << _seqname << "." << _num_cc << "." << _indMod << endl;
+    }
+    prev_debExon = debExon;
+
+    /* CDS or UTR part*/
+    if( finCDS < debExon) { /* multi UTR exons; not the merge ones with CDS */
+        utr_type = (strdSt == "+") ? "three_prime_UTR" : "five_prime_UTR";
+        nb_exUTR++;
+        forf << _seqname << "\tGmove\t" << utr_type << "\t" << debExon << "\t" << finExon << "\t.\t" << strdSt << "\t.\t"
+        << "ID=utr." << _seqname << "." << _num_cc << "." << _indMod << "." << nb_exUTR
+        << ";Parent=mRNA." << _seqname << "." << _num_cc << "." << _indMod << endl;
+    }
+    else if (debCDS > finExon) { /* multi UTR exons; not the merge ones with CDS */
+        utr_type = (strdSt == "+") ? "five_prime_UTR" : "three_prime_UTR";
+        nb_exUTR++;
+        forf << _seqname << "\tGmove\t" << utr_type << "\t" << debExon << "\t" << finExon << "\t.\t" << strdSt << "\t.\t"
+        << "ID=utr." << _seqname << "." << _num_cc << "." << _indMod << "." << nb_exUTR
+        << ";Parent=mRNA." << _seqname << "." << _num_cc << "." << _indMod << endl;
+    }
+    else {
+      s32 end = (finCDS < finExon) ? finCDS : finExon; /* test: last coding exon merged with UTR */
+      s32 begin = (debCDS < debExon) ? debExon : debCDS; /* test: first coding exon merged with UTR */
+      if(begin != debExon){
+        if( (_strand > 0 && _start_found) || (_strand < 0 && _stop_found ) ){
+            utr_type = (strdSt == "+") ? "five_prime_UTR" : "three_prime_UTR";
+            nb_exUTR++;
+            forf << _seqname << "\tGmove\t" << utr_type << "\t" << debExon << "\t" << begin-1 << "\t.\t" << strdSt << "\t.\t"
+            << "ID=utr." << _seqname << "." << _num_cc << "." << _indMod << "." << nb_exUTR
+            << ";Parent=mRNA." << _seqname << "." << _num_cc << "." << _indMod << endl;
+        }
+      }
+      nb_exCDS++;
+      forf << _seqname << "\tGmove\tCDS\t" << begin << "\t" << end << "\t.\t" << strdSt << "\t.\t"
+      << "ID=cds." << _seqname << "." << _num_cc << "." << _indMod << "." << nb_exCDS
+      << ";Parent=mRNA." << _seqname << "." << _num_cc << "." << _indMod << endl;
+      if(end != finExon){
+	    if( (_strand > 0 && _stop_found) || (_strand < 0 && _start_found) ){
+            utr_type = (strdSt == "+") ? "three_prime_UTR" : "five_prime_UTR";
+            nb_exUTR++;
+	        forf << _seqname << "\tGmove\t" << utr_type << "\t" << end+1 << "\t" << finExon << "\t.\t" << strdSt << "\t.\t"
+            << "ID=utr." << _seqname << "." << _num_cc << "." << _indMod << "." << nb_exUTR
+            << ";Parent=mRNA." << _seqname << "." << _num_cc << "." << _indMod << endl;
+	    }
+      }
+    }
+  }
 }
 
 // GFF3 file outputing: format fitting our in-house needs
@@ -97,7 +230,6 @@ void GeneModel::formatGFF (ofstream &forf) {
        << _seqname << "." << _num_cc << "." << _indMod
        << ";Name=mRNA." << _seqname << "." << _num_cc << "." << _indMod
        << argCDS << endl;
-  
   for (TSSRList::iterator it = _exons.begin(); it != _exons.end(); it++){
     s32 debExon = (*it)->start();
     s32 finExon = (*it)->end()  ;
@@ -117,18 +249,18 @@ void GeneModel::formatGFF (ofstream &forf) {
       s32 end = (finCDS < finExon) ? finCDS : finExon;
       s32 begin = (debCDS < debExon) ? debExon : debCDS;
       if(begin != debExon){
-	if( (_strand > 0 && _start_found) || (_strand < 0 && _stop_found ) ){
-	  forf << _seqname << "\tGmove\tUTR\t" << debExon << "\t" << begin-1 << "\t.\t" << strdSt << "\t.\t" << "Parent=mRNA."
-	       << _seqname << "." << _num_cc << "." << _indMod << endl;
-	}
+        if( (_strand > 0 && _start_found) || (_strand < 0 && _stop_found ) ){
+            forf << _seqname << "\tGmove\tUTR\t" << debExon << "\t" << begin-1 << "\t.\t" << strdSt << "\t.\t" << "Parent=mRNA."
+                << _seqname << "." << _num_cc << "." << _indMod << endl;
+        }
       }
       forf << _seqname << "\tGmove\tCDS\t" << begin << "\t" << end << "\t.\t" << strdSt << "\t.\t" << "Parent=mRNA."
-	   << _seqname << "." << _num_cc << "." << _indMod << endl;
+        << _seqname << "." << _num_cc << "." << _indMod << endl;
       if(end != finExon){
-	if( (_strand > 0 && _stop_found) || (_strand < 0 && _start_found) ){
-	  forf << _seqname << "\tGmove\tUTR\t" << end+1 << "\t" << finExon << "\t.\t" << strdSt << "\t.\t" << "Parent=mRNA."
-	       << _seqname << "." << _num_cc << "." << _indMod << endl;
-	}
+	    if( (_strand > 0 && _stop_found) || (_strand < 0 && _start_found) ){
+	        forf << _seqname << "\tGmove\tUTR\t" << end+1 << "\t" << finExon << "\t.\t" << strdSt << "\t.\t" << "Parent=mRNA."
+	            << _seqname << "." << _num_cc << "." << _indMod << endl;
+	    }
       }
     }
   }
